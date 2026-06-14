@@ -1,0 +1,33 @@
+# Exclude large 1C database backups (prevent copying 2GB+ to docker daemon)
+*.dt
+
+# Exclude OS metadata
+.DS_Store
+Thumbs.db
+
+# Exclude Git files
+.git/
+.gitignore
+
+# Exclude local virtual environments
+backend/venv/
+backend/.venv/
+.venv/
+venv/
+
+# Exclude Node.js and static builds
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+
+# Exclude caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.cache/
+backend/backend_errors.log
+*.log
+*.db
