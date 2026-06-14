@@ -1,9 +1,20 @@
 <template>
   <div>
-    <div class="wbar mb4">
-      <div class="wb-t">Добро пожаловать, {{ auth.user?.full_name?.split(' ')[0] || 'Пользователь' }}! 👋</div>
-      <div class="wb-s">Система управления ООО «НОРД-ИСТ ГРУПП»</div>
-      <div class="wb-d">{{ today }}</div>
+    <div class="wbar mb4 flex justB itemsC" style="flex-wrap: wrap; gap: 12px;">
+      <div>
+        <div class="wb-t">Добро пожаловать, {{ auth.user?.full_name?.split(' ')[0] || 'Пользователь' }}! 👋</div>
+        <div class="wb-s">Система управления ООО «НОРД-ИСТ ГРУПП»</div>
+        <div class="wb-d">{{ today }}</div>
+      </div>
+      <!-- Выбор склада -->
+      <div v-if="warehouses.length > 0" class="flex itemsC" style="z-index: 10; gap: 8px;">
+        <span style="font-size: 13px; font-weight: 500; opacity: 0.95; display: flex; align-items: center; gap: 4px;">
+          <i class="fas fa-warehouse"></i> Склад:
+        </span>
+        <select v-model="selectedWarehouse" @change="onWarehouseChange" class="fin fin-sm" style="width: 200px; background: rgba(255, 255, 255, 0.15); color: #fff; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 8px; font-weight: 500; cursor: pointer;">
+          <option v-for="w in warehouses" :key="w.id" :value="w.id" style="color: var(--text);">{{ w.name }}</option>
+        </select>
+      </div>
     </div>
 
     <div v-if="warehouseStatus && warehouseStatus.status !== 'ok'"
@@ -137,6 +148,9 @@ const stats = ref(null)
 const recentOps = ref([])
 const pendingDocs = ref([])
 
+const warehouses = ref([])
+const selectedWarehouse = ref(null)
+
 const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
 const typeLabels = { vacation: 'Отпуск', travel: 'Командировка', waybill: 'Путевой лист', employment: 'Договор' }
@@ -157,13 +171,21 @@ function initCharts() {
   // Линейный график динамики
   const el1 = document.getElementById('dash-stock')
   if (el1) {
+    const currentMonthIdx = new Date().getMonth()
+    const dynamicStock = peatStock.map((val, idx) => {
+      if (idx < currentMonthIdx) return val
+      if (idx === currentMonthIdx) return warehouseStatus.value ? warehouseStatus.value.current_stock : val
+      return null
+    })
+
+    if (stockChart) stockChart.destroy()
     stockChart = new Chart(el1, {
       type: 'line',
       data: {
         labels: months,
         datasets: [{
           label: 'Остаток торфа (т)',
-          data: peatStock,
+          data: dynamicStock,
           borderColor: '#2563eb',
           backgroundColor: 'rgba(37,99,235,.08)',
           fill: true,
@@ -181,12 +203,14 @@ function initCharts() {
     const cur = warehouseStatus.value.current_stock
     const cap = warehouseStatus.value.capacity
     const clr = warehouseStatus.value.status === 'crit' ? '#ef4444' : warehouseStatus.value.status === 'warn' ? '#f59e0b' : '#22c55e'
+    
+    if (donutChart) donutChart.destroy()
     donutChart = new Chart(el2, {
       type: 'doughnut',
       data: {
         labels: ['Занято', 'Свободно'],
         datasets: [{
-          data: [cur, cap - cur],
+          data: [cur, Math.max(0, cap - cur)],
           backgroundColor: [clr, '#f1f5f9'],
           borderWidth: 0
         }]
@@ -196,18 +220,42 @@ function initCharts() {
   }
 }
 
+async function loadWarehouseData() {
+  if (!selectedWarehouse.value) return
+  try {
+    const [ws, ops] = await Promise.all([
+      api.get(`/warehouse/status?warehouse_id=${selectedWarehouse.value}&product_id=1`).catch(() => null),
+      api.get(`/warehouse/operations?warehouse_id=${selectedWarehouse.value}&product_id=1&limit=10`).catch(() => null)
+    ])
+    if (ws) warehouseStatus.value = ws.data
+    if (ops) recentOps.value = ops.data
+  } catch (e) {
+    console.error("Ошибка загрузки данных склада на Dashboard:", e)
+  }
+}
+
+async function onWarehouseChange() {
+  await loadWarehouseData()
+  nextTick(() => {
+    initCharts()
+  })
+}
+
 onMounted(async () => {
   try {
-    const [ws, st, ops, docs] = await Promise.all([
-      api.get('/warehouse/status'),
-      api.get('/analytics/dashboard'),
-      api.get('/warehouse/operations?limit=10'),
-      api.get('/documents/'),
+    const whRes = await api.get('/warehouse/list').catch(() => null)
+    if (whRes && whRes.data.length > 0) {
+      warehouses.value = whRes.data
+      selectedWarehouse.value = whRes.data[0].id
+    }
+    await loadWarehouseData()
+
+    const [st, docs] = await Promise.all([
+      api.get('/analytics/dashboard').catch(() => null),
+      api.get('/documents/').catch(() => null),
     ])
-    warehouseStatus.value = ws.data
-    stats.value = st.data
-    recentOps.value = ops.data
-    pendingDocs.value = docs.data.filter(d => d.status === 'pending')
+    if (st) stats.value = st.data
+    if (docs) pendingDocs.value = docs.data.filter(d => d.status === 'pending')
   } catch (e) {
     console.error("Ошибка загрузки Dashboard:", e)
   } finally {

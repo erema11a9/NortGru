@@ -101,11 +101,17 @@ def get_operations(
     
     result = []
     for op in ops:
-        r = schemas.PeatOperationResponse.model_validate(op).model_dump()
-        r["employee_name"] = op.author.full_name if op.author else "—"
-        r["source"] = op.description or ("Поставка" if op.operation_type == "in" else "Отгрузка")
-        # В данной реализации мы не храним balance_after, поэтому отправляем просто кол-во:
-        r["balance_after"] = op.amount # TODO: Можно добавить расчет
+        r = {
+            "id": op.id,
+            "type": op.operation_type,
+            "amount": float(op.amount),
+            "description": op.description,
+            "created_at": op.created_at,
+            "author_id": op.author_id,
+            "employee_name": op.author.full_name if op.author else "—",
+            "source": op.description or ("Поставка" if op.operation_type == "in" else "Отгрузка"),
+            "balance_after": float(op.amount)
+        }
         result.append(r)
     return result
 
@@ -141,8 +147,15 @@ def add_operation(
     db.commit()
     db.refresh(op)
 
-    r = schemas.PeatOperationResponse.model_validate(op).model_dump()
-    r["employee_name"] = current_user.full_name
-    r["source"] = op.description or ("Поставка" if op.operation_type == "in" else "Отгрузка")
-    r["balance_after"] = stock.quantity
+    r = {
+        "id": op.id,
+        "type": op.operation_type,
+        "amount": float(op.amount),
+        "description": op.description,
+        "created_at": op.created_at,
+        "author_id": op.author_id,
+        "employee_name": current_user.full_name,
+        "source": op.description or ("Поставка" if op.operation_type == "in" else "Отгрузка"),
+        "balance_after": float(stock.quantity)
+    }
     return r

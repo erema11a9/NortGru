@@ -6,11 +6,15 @@
         <div class="ps">Мониторинг запасов и складские операции</div>
       </div>
       <div class="ph-r" style="display: flex; gap: 10px; align-items: center;">
+        <div v-if="loading || loadingAllProducts" style="color: var(--primary); font-size: 13px; display: flex; align-items: center; gap: 6px; margin-right: 8px;">
+          <i class="fas fa-circle-notch fa-spin"></i>
+          <span>Обновление...</span>
+        </div>
         <div style="display:flex; flex-direction:column; gap:4px; margin-right: 10px;">
-          <select v-model="selectedWarehouse" class="fin fin-sm" @change="loadData" :disabled="loading">
+          <select v-model="selectedWarehouse" class="fin fin-sm" @change="loadData(false)" :disabled="loading && !warehouses.length">
              <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
           </select>
-          <select v-model="selectedProduct" class="fin fin-sm" @change="loadData" :disabled="loading">
+          <select v-model="selectedProduct" class="fin fin-sm" @change="loadData(false)" :disabled="loading && !products.length">
              <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
@@ -23,12 +27,58 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading" style="padding: 40px; text-align: center;">
-      <i class="fas fa-circle-notch fa-spin fa-2x"></i>
-      <div style="margin-top: 10px; color: #64748b;">Загрузка данных склада...</div>
-    </div>
+    <!-- Сводная таблица по всей номенклатуре -->
+      <div class="card mb4">
+        <div class="ch" style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="ct">
+            <i class="fas fa-list-alt tb" style="margin-right: 6px;"></i>
+            Текущие остатки по всей номенклатуре на складе
+          </span>
+          <span class="fs12 tm">Нажмите на строку товара для переключения графиков и журнала операций ниже</span>
+        </div>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th>Наименование товара / сырья</th>
+                <th>Текущий остаток</th>
+                <th>Ёмкость склада</th>
+                <th>Заполненность</th>
+                <th>Состояние</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="item in allProductsStatus" 
+                :key="item.id"
+                :class="['clickable-row', { 'active-row': selectedProduct === item.id }]"
+                @click="selectProductFromTable(item.id)"
+              >
+                <td class="fw6">
+                  <i :class="getProductIcon(item.name)" style="margin-right: 8px;"></i>
+                  {{ item.name }}
+                </td>
+                <td class="fw6">{{ item.current_stock }} т / шт</td>
+                <td class="tm">{{ item.capacity }} т / шт</td>
+                <td>
+                  <div class="flex itemsC" style="gap: 8px;">
+                    <span class="fs12 fw6" style="min-width: 35px;">{{ item.percent }}%</span>
+                    <div class="prw" style="flex: 1; max-width: 150px;">
+                      <div class="prf" :style="{ width: item.percent + '%', background: getStatusColorVal(item.status) }"></div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span :class="['badge', getStatusBadgeClass(item.status)]">
+                    {{ getStatusTextVal(item.status) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-    <template v-else-if="status">
       <div class="g g4 mb4">
         <div :class="['peat-box', 'peat-' + (status?.status ?? 'ok')]">
           <div class="peat-num">{{ status?.current_stock ?? '—' }}</div>
@@ -119,7 +169,6 @@
           </table>
         </div>
       </div>
-    </template>
 
     <div v-if="opMod" class="ov" @click.self="opMod = false">
       <div class="modal">
@@ -172,6 +221,78 @@ const products = ref([])
 const selectedWarehouse = ref(null)
 const selectedProduct = ref(null)
 
+const allProductsStatus = ref([])
+const loadingAllProducts = ref(false)
+
+function getProductIcon(name) {
+  if (!name) return 'fas fa-box tm'
+  const nameL = name.toLowerCase()
+  if (nameL.includes('кусковой')) return 'fas fa-mountain ty'
+  if (nameL.includes('низинный')) return 'fas fa-water tb'
+  if (nameL.includes('nortpeat')) return 'fas fa-leaf tg'
+  if (nameL.includes('удобрение')) return 'fas fa-flask tp'
+  return 'fas fa-box tm'
+}
+
+function getStatusColorVal(st) {
+  if (st === 'crit') return '#ef4444'
+  if (st === 'warn') return '#f59e0b'
+  return '#22c55e'
+}
+
+function getStatusBadgeClass(st) {
+  if (st === 'crit') return 'b-err'
+  if (st === 'warn') return 'b-warn'
+  return 'b-ok'
+}
+
+function getStatusTextVal(st) {
+  const map = { ok: 'Норма', warn: 'Низкий', crit: 'Критичен' }
+  return map[st] || '—'
+}
+
+function selectProductFromTable(id) {
+  selectedProduct.value = id
+  loadData()
+}
+
+async function loadAllProductsStatus() {
+  if (!selectedWarehouse.value || !products.value.length) return
+  loadingAllProducts.value = true
+  try {
+    const results = await Promise.all(
+      products.value.map(async (p) => {
+        try {
+          const res = await api.get(`/warehouse/status?warehouse_id=${selectedWarehouse.value}&product_id=${p.id}`)
+          return {
+            id: p.id,
+            name: p.name,
+            current_stock: res.data.current_stock,
+            capacity: res.data.capacity,
+            percent: res.data.percent,
+            status: res.data.status
+          }
+        } catch (err) {
+          console.error(`Failed to load status for product ${p.id}`, err)
+          return {
+            id: p.id,
+            name: p.name,
+            current_stock: 0,
+            capacity: 5000,
+            percent: 0,
+            status: 'ok'
+          }
+        }
+      })
+    )
+    allProductsStatus.value = results
+  } catch (err) {
+    console.error(err)
+  } finally {
+    loadingAllProducts.value = false
+  }
+}
+
 const opMod = ref(false)
 const opType = ref('in')
 const opAmt = ref('')
@@ -206,14 +327,25 @@ let donutChart = null
 function initCharts() {
   const el1 = document.getElementById('wh-line')
   if (el1) {
+    const currentMonthIdx = new Date().getMonth()
+    const dynamicStock = mockStock.map((val, idx) => {
+      if (idx < currentMonthIdx) return val
+      if (idx === currentMonthIdx) return status.value ? status.value.current_stock : val
+      return null
+    })
+    const dynamicCons = mockCons.map((val, idx) => {
+      if (idx <= currentMonthIdx) return val
+      return null
+    })
+
     if (lineChart) lineChart.destroy()
     lineChart = new Chart(el1, {
       type: 'line',
       data: {
         labels: months,
         datasets: [
-          { label: 'Остаток', data: mockStock, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.07)', fill: true, tension: .4, pointRadius: 3 },
-          { label: 'Потребление (расход)', data: mockCons, borderColor: '#f59e0b', fill: false, tension: .4, borderDash: [5, 4], pointRadius: 3 },
+          { label: 'Остаток', data: dynamicStock, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.07)', fill: true, tension: .4, pointRadius: 3 },
+          { label: 'Потребление (расход)', data: dynamicCons, borderColor: '#f59e0b', fill: false, tension: .4, borderDash: [5, 4], pointRadius: 3 },
         ]
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
@@ -267,9 +399,14 @@ async function loadDictionaries() {
   }
 }
 
-async function loadData() {
-  if (!isSelectionValid.value) return
-  loading.value = true
+async function loadData(isInitial = false) {
+  if (!isSelectionValid.value) {
+    if (isInitial === true) loading.value = false
+    return
+  }
+  if (isInitial === true) {
+    loading.value = true
+  }
   try {
     const qs = `?warehouse_id=${selectedWarehouse.value}&product_id=${selectedProduct.value}`
     const [stRes, opRes] = await Promise.all([
@@ -279,13 +416,19 @@ async function loadData() {
     status.value = stRes.data
     ops.value = opRes.data
 
+    // Загружаем всю сводку по товарам в фоновом режиме
+    loadAllProductsStatus()
+
     nextTick(() => {
       setTimeout(initCharts, 100)
     })
   } catch (e) {
+    console.error("loadData error:", e)
     app.toast('err', '❌ Ошибка', 'Не удалось загрузить данные склада')
   } finally {
-    loading.value = false
+    if (isInitial === true) {
+      loading.value = false
+    }
   }
 }
 
@@ -314,9 +457,12 @@ async function submitOp() {
 
     ops.value.unshift(newOp)
     
-    // Перезагрузка статуса
-    const { data: newStatus } = await api.get(`/warehouse/status${qs}`)
-    status.value = newStatus
+    // Перезагрузка статуса и всей сводки
+    const [newStatusRes] = await Promise.all([
+      api.get(`/warehouse/status${qs}`),
+      loadAllProductsStatus()
+    ])
+    status.value = newStatusRes.data
 
     app.toast('ok', '✅ Записано', `${opType.value === 'in' ? 'Приход' : 'Расход'}: ${amt}`)
     opMod.value = false
@@ -330,9 +476,15 @@ async function submitOp() {
 }
 
 onMounted(async () => {
-    loading.value = true
+  loading.value = true
+  try {
     await loadDictionaries()
-    await loadData()
+    await loadData(true)
+  } catch (err) {
+    console.error("Initialization failed", err)
+  } finally {
+    loading.value = false
+  }
 })
 
 onUnmounted(() => {
@@ -340,3 +492,20 @@ onUnmounted(() => {
   donutChart?.destroy()
 })
 </script>
+
+<style scoped>
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.clickable-row:hover {
+  background-color: #f1f5f9 !important;
+}
+.active-row {
+  background-color: #eff6ff !important;
+}
+.active-row td:first-child {
+  border-left: 4px solid #2563eb;
+  padding-left: 9px;
+}
+</style>

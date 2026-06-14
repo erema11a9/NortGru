@@ -7,7 +7,10 @@
       </div>
       <div class="ph-r" style="display: flex; gap: 10px;">
         <button class="btn btn-ghost" @click="exportXML">
-          <i class="fas fa-file-code"></i> Выгрузить XML
+          <i class="fas fa-file-code"></i> XML путевых листов
+        </button>
+        <button class="btn btn-ghost" @click="exportEmploymentXML" style="color:#6366f1;border-color:#6366f1;">
+          <i class="fas fa-file-export"></i> XML договоров
         </button>
         <button class="btn btn-primary" @click="dMod = true">
           <i class="fas fa-plus"></i> Создать документ
@@ -275,14 +278,78 @@
 
           <!-- Employment fields -->
           <template v-if="newType === 'employment'">
-            <div class="fgr"><label class="fll">Должность</label><input v-model="nd.job_title" class="fin" placeholder="Водитель" /></div>
+            <!-- ─── ГЛАВНОЕ ─── -->
+            <div class="form-section-title"><i class="fas fa-star"></i> Основные реквизиты</div>
             <div class="frow2">
-              <div class="fgr"><label class="fll">Табельный номер</label><input v-model="nd.tabel_number" class="fin" placeholder="ТН-001" /></div>
-              <div class="fgr"><label class="fll">Телефон</label><input v-model="nd.phone" class="fin" placeholder="+7..." /></div>
+              <div class="fgr"><label class="fll">Организация</label><input v-model="nd.organization" class="fin" placeholder="ООО «НОРД-ИСТ ГРУПП»" /></div>
+              <div class="fgr"><label class="fll">Номер договора</label><input v-model="nd.contract_number" class="fin" placeholder="ТД-001" /></div>
             </div>
             <div class="frow2">
-               <div class="fgr"><label class="fll">Email</label><input v-model="nd.email" class="fin" type="email" placeholder="user@mail.ru" /></div>
-               <div class="fgr"><label class="fll">Дата приёма</label><input v-model="nd.dt" class="fin" type="date" /></div>
+              <div class="fgr"><label class="fll">Вид договора</label>
+                <select v-model="nd.contract_type" class="fin">
+                  <option value="">— Выберите —</option>
+                  <option value="1">1 — Бессрочный</option>
+                  <option value="2">2 — Срочный</option>
+                  <option value="3">3 — По совместительству</option>
+                </select>
+              </div>
+              <div class="fgr"><label class="fll">Дата приема</label><input v-model="nd.hire_date" class="fin" type="date" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Подразделение</label><input v-model="nd.department" class="fin" placeholder="Транспортный цех" /></div>
+              <div class="fgr"><label class="fll">Территория</label><input v-model="nd.territory" class="fin" placeholder="г. Биробиджан" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Должность по штату</label><input v-model="nd.position_staff" class="fin" placeholder="Водитель категории B" /></div>
+              <div class="fgr"><label class="fll">Должность</label><input v-model="nd.job_title" class="fin" placeholder="Водитель" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">График работы</label><input v-model="nd.work_schedule" class="fin" placeholder="5/2, 8 часов" /></div>
+              <div class="fgr"><label class="fll">Вид занятости</label><input v-model="nd.employment_type" class="fin" placeholder="Основное место работы" /></div>
+            </div>
+
+            <!-- ─── ВТОРОСТЕПЕННОЕ ─── -->
+            <div class="form-section-title" style="margin-top:14px;"><i class="fas fa-list"></i> Дополнительные сведения</div>
+            <div class="frow2">
+              <div class="fgr">
+                <label class="fll">Наименование документа</label>
+                <input v-model="nd.doc_name" class="fin" placeholder="Трудовой договор" />
+              </div>
+              <div class="fgr">
+                <label class="fll">Трудовая фиксация</label>
+                <input v-model="nd.work_fixation" class="fin" placeholder="Электронная ТК" />
+              </div>
+            </div>
+            <div class="frow2">
+              <div class="fgr" style="display:flex;align-items:center;gap:10px;">
+                <input type="checkbox" v-model="nd.reflect_in_workbook" id="chk_reflect" style="width:18px;height:18px;accent-color:#6366f1;" />
+                <label for="chk_reflect" class="fll" style="margin-bottom:0;">Отразить в трудовой книжке</label>
+              </div>
+              <div class="fgr" style="display:flex;align-items:center;gap:10px;">
+                <input type="checkbox" v-model="nd.start_of_work" id="chk_start" style="width:18px;height:18px;accent-color:#6366f1;" />
+                <label for="chk_start" class="fll" style="margin-bottom:0;">Начало трудовой деятельности</label>
+              </div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Способ ведения</label><input v-model="nd.management_method" class="fin" placeholder="Электронный" /></div>
+              <div class="fgr"><label class="fll">Дата заявления о выборе способа</label><input v-model="nd.method_choice_date" class="fin" type="date" /></div>
+            </div>
+            <div class="form-section-title" style="margin-top:8px;">Второй документ</div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Наименование втор. документа</label><input v-model="nd.second_doc_name" class="fin" placeholder="Паспорт" /></div>
+              <div class="fgr"><label class="fll">Дата втор. документа</label><input v-model="nd.second_doc_date" class="fin" type="date" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Серия втор. документа</label><input v-model="nd.second_doc_series" class="fin" placeholder="27 11" /></div>
+              <div class="fgr"><label class="fll">Номер втор. документа</label><input v-model="nd.second_doc_number" class="fin" placeholder="123456" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">ПКУ</label><input v-model="nd.pku" class="fin" placeholder="Профессиональный квалиф. уровень" /></div>
+              <div class="fgr"><label class="fll">Разряд</label><input v-model="nd.grade" class="fin" placeholder="4" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">ФОТ (руб.)</label><input v-model.number="nd.fot" class="fin" type="number" placeholder="50000" /></div>
+              <div class="fgr"><label class="fll">Ответственный</label><input v-model="nd.responsible" class="fin" placeholder="Иванова А.П." /></div>
             </div>
           </template>
         </div>
@@ -324,9 +391,18 @@ const newEmp     = ref('')
 const nd         = reactive({ 
   s:'', e:'', reason:'', dest:'', dt:'',
   // Waybill fields
-  series_number: '', vehicle: '', driver: '', period_info: '', route_from: '', route_to: '', departure_time: '', arrival_time: '', distance_km: '', fuel_mark: 'ДТ', fuel_price: '', fuel_cost: '', fuel_issued: '', fuel_handed_over: '',
-  // Employment fields
-  job_title: '', tabel_number: '', phone: '', email: ''
+  series_number: '', vehicle: '', driver: '', period_info: '', route_from: '', route_to: '', departure_time: '', arrival_time: '', distance_km: '', fuel_mark: 'ДТ', fuel_price: '', fuel_cost: '', fuel_issued: '', fuel_handed_over: '', fuel_rate: '',
+  // Employment — Главное
+  organization: '', contract_number: '', contract_type: '', hire_date: '',
+  department: '', territory: '', position_staff: '', job_title: '',
+  work_schedule: '', employment_type: '',
+  // Employment — Второстепенное
+  reflect_in_workbook: false, work_fixation: '', doc_name: '',
+  start_of_work: false, management_method: '', method_choice_date: '',
+  second_doc_name: '', second_doc_date: '', second_doc_series: '', second_doc_number: '',
+  pku: '', grade: '', fot: '', responsible: '',
+  // legacy
+  tabel_number: '', phone: '', email: ''
 })
 
 const typeLabels = { vacation:'Заявка на отпуск', travel:'Командировка', waybill:'Путевой лист', employment:'Трудовой договор' }
@@ -378,9 +454,27 @@ async function exportXML() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    app.toast('ok', 'Успешно', 'XML документ выгружен')
+    app.toast('ok', 'Успешно', 'XML путевых листов выгружен')
   } catch (e) {
     app.toast('err', '❌ Ошибка', 'Не удалось выгрузить XML')
+  }
+}
+
+async function exportEmploymentXML() {
+  try {
+    app.toast('info', 'XML', 'Формирование XML трудовых договоров...')
+    const response = await api.get('/documents/export_xml_employment', { responseType: 'blob' })
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/xml' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'trudovye_dogovory.xml')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    app.toast('ok', '✅ Готово', 'XML трудовых договоров выгружен')
+  } catch (e) {
+    app.toast('err', '❌ Ошибка', 'Не удалось выгрузить XML договоров')
   }
 }
 

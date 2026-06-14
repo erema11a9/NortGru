@@ -10,6 +10,7 @@ class UserBase(BaseModel):
     name: str
     role: str
     full_name: Optional[str] = None
+    phone: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -17,7 +18,19 @@ class UserBase(BaseModel):
 class UserResponse(UserBase):
     department: Optional[str] = None
     is_active: Optional[bool] = True
+    is_approved: bool = False
     created_at: Optional[datetime] = None
+
+class UserRegister(BaseModel):
+    full_name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    password: str
+    requested_role: Optional[str] = "warehouse"
+
+class UserApproveRequest(BaseModel):
+    role: str
+    job_title: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -154,3 +167,21 @@ class AnalyticsData(BaseModel):
     total_shipping: float
     total_peat: float
     efficiency: float
+
+# ─── СХЕМЫ БАЗЫ ЗНАНИЙ ──────────────────────────────────────────────────
+
+class KnowledgeItemBase(BaseModel):
+    title: str
+    content: str
+    category: str
+
+class KnowledgeItemCreate(KnowledgeItemBase):
+    pass
+
+class KnowledgeItemResponse(KnowledgeItemBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

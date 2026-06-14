@@ -17,12 +17,18 @@ const routes = [
       { path: 'dashboard', component: () => import('@/views/Dashboard.vue') },
       { path: 'warehouse', component: () => import('@/views/Warehouse.vue') },
       { path: 'documents', component: () => import('@/views/Documents.vue') },
-      { path: 'transport', component: () => import('@/views/Transport.vue') }, // Добавили эту строку
+      { path: 'transport', component: () => import('@/views/Transport.vue') },
       { path: 'mcp', component: () => import('@/views/MCPChat.vue') },
+      { path: 'knowledge', component: () => import('@/views/KnowledgeBase.vue') },
       {
         path: 'analytics',
         component: () => import('@/views/Analytics.vue'),
         meta: { roles: ['director', 'manager', 'admin'] }
+      },
+      {
+        path: 'approvals',
+        component: () => import('@/views/Approvals.vue'),
+        meta: { roles: ['director', 'admin'] }
       },
       { path: 'profile', component: () => import('@/views/Profile.vue') },
     ]

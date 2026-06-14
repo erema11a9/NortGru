@@ -59,6 +59,87 @@ def list_documents(
         q = q.filter(models.Document.document_type == doc_type)
     return [_enrich(d) for d in q.order_by(models.Document.created_at.desc()).all()]
 
+@router.get("/export_xml_employment")
+def export_employment_xml(db: Session = Depends(get_db)):
+    from fastapi import Response
+    import json, urllib.parse
+    docs = db.query(models.Document).filter(models.Document.document_type == 'employment').all()
+    
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>', '<ТрудовыеДоговоры>']
+    
+    for doc in docs:
+        extra = {}
+        if doc.extra_data:
+            try:
+                extra = json.loads(doc.extra_data)
+            except:
+                pass
+        
+        def v(key, default=''):
+            val = extra.get(key, default)
+            return str(val) if val is not None else ''
+        
+        # Булевы значения
+        def b(key):
+            val = extra.get(key)
+            return 'true' if val in (True, 'true', '1', 1) else 'false'
+        
+        lines.append('\t<ТрудовойДоговор>')
+        # --- Главное ---
+        lines.append(f'\t\t<Организация>{v("organization") or "ООО «НОРД-ИСТ ГРУПП»"}</Организация>')
+        lines.append(f'\t\t<Сотрудник>{doc.employee_name}</Сотрудник>')
+        lines.append(f'\t\t<Дата>{doc.created_at.strftime("%Y-%m-%d")}</Дата>')
+        lines.append(f'\t\t<Номер>{v("contract_number") or doc.number}</Номер>')
+        lines.append(f'\t\t<ВидДоговора>{v("contract_type")}</ВидДоговора>')
+        lines.append(f'\t\t<ДатаПриема>{v("hire_date")}</ДатаПриема>')
+        lines.append(f'\t\t<Подразделение>{v("department")}</Подразделение>')
+        lines.append(f'\t\t<Территория>{v("territory")}</Территория>')
+        lines.append(f'\t\t<ДолжностьПоШтату>{v("position_staff")}</ДолжностьПоШтату>')
+        lines.append(f'\t\t<Должность>{v("job_title")}</Должность>')
+        lines.append(f'\t\t<ГрафикРаботы>{v("work_schedule")}</ГрафикРаботы>')
+        lines.append(f'\t\t<ВидЗанятости>{v("employment_type")}</ВидЗанятости>')
+        # --- Второстепенное ---
+        lines.append(f'\t\t<ОтразитьВТрудовойКнижке>{b("reflect_in_workbook")}</ОтразитьВТрудовойКнижке>')
+        lines.append(f'\t\t<ТрудоваяФиксация>{v("work_fixation")}</ТрудоваяФиксация>')
+        lines.append(f'\t\t<НаименованиеДокумента>{v("doc_name")}</НаименованиеДокумента>')
+        lines.append(f'\t\t<НачалоТрудовойДеятельности>{b("start_of_work")}</НачалоТрудовойДеятельности>')
+        lines.append(f'\t\t<СпособВедения>{v("management_method")}</СпособВедения>')
+        lines.append(f'\t\t<ДатаЗаявленияОВыбореСпоспоба>{v("method_choice_date")}</ДатаЗаявленияОВыбореСпоспоба>')
+        lines.append(f'\t\t<НаименованиеВторДок>{v("second_doc_name")}</НаименованиеВторДок>')
+        lines.append(f'\t\t<ДатаВторогоДок>{v("second_doc_date")}</ДатаВторогоДок>')
+        lines.append(f'\t\t<СерияВторогоДок>{v("second_doc_series")}</СерияВторогоДок>')
+        lines.append(f'\t\t<НомерВторогоДок>{v("second_doc_number")}</НомерВторогоДок>')
+        lines.append(f'\t\t<ПКУ>{v("pku")}</ПКУ>')
+        lines.append(f'\t\t<Разряд>{v("grade")}</Разряд>')
+        lines.append(f'\t\t<ФОТ>{v("fot")}</ФОТ>')
+        lines.append(f'\t\t<Ответственный>{v("responsible")}</Ответственный>')
+        lines.append('\t</ТрудовойДоговор>')
+    
+    lines.append('</ТрудовыеДоговоры>')
+    xml_str = '\n'.join(lines)
+    
+    # Сохраняем локально на Google Диск
+    try:
+        import os
+        export_dir = r"G:\Мой диск\XML files"
+        os.makedirs(export_dir, exist_ok=True)
+        with open(os.path.join(export_dir, 'trudovye_dogovory.xml'), 'w', encoding='utf-8') as f:
+            f.write(xml_str)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Не удалось сохранить XML на Google Диск: {str(e)}"
+        )
+    
+    filename = 'trudovye_dogovory.xml'
+    filename_encoded = urllib.parse.quote(filename)
+    headers = {
+        "Content-Disposition": f"attachment; filename*=utf-8''{filename_encoded}",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+    }
+    return Response(content=xml_str, media_type="application/xml; charset=utf-8", headers=headers)
+
+
 @router.get("/export_xml")
 def export_docs_xml(db: Session = Depends(get_db)):
     from fastapi import Response
@@ -89,6 +170,20 @@ def export_docs_xml(db: Session = Depends(get_db)):
         xml_str += f'\t\t<Цена>{price}</Цена>\n'
         xml_str += f'\t</ПутевойЛист>\n'
     xml_str += '</Документы>'
+    
+    # Сохраняем локально на Google Диск
+    try:
+        import os
+        export_dir = r"G:\Мой диск\XML files"
+        os.makedirs(export_dir, exist_ok=True)
+        with open(os.path.join(export_dir, 'documents_waybills.xml'), 'w', encoding='utf-8') as f:
+            f.write(xml_str)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Не удалось сохранить XML на Google Диск: {str(e)}"
+        )
+        
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",

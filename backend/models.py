@@ -11,6 +11,9 @@ class Person(Base):
     email = Column(String(100), unique=True, index=True)
     phone = Column(String(20))
     password_hash = Column(Text, nullable=False)
+    is_approved = Column(Boolean, default=False, nullable=False)
+    requested_role = Column(String(50))
+    created_at = Column(DateTime, default=datetime.now)
     
     # Связи
     roles = relationship("Role", secondary="person_roles", back_populates="people")
@@ -162,6 +165,16 @@ class Notification(Base):
     
     user = relationship("Person")
 
+
+# 6. БАЗА ЗНАНИЙ
+class KnowledgeItem(Base):
+    __tablename__ = "knowledge_items"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    category = Column(String(100), nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 #--- Псевдонимы для удобства импорта ---
 User = Person

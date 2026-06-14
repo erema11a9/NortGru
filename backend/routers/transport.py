@@ -96,6 +96,20 @@ def export_waybills_xml(db: Session = Depends(get_db)):
             xml_str += f'\t\t<Цена>{price}</Цена>\n'
             xml_str += f'\t</ПутевойЛист>\n'
     xml_str += '</Документы>'
+
+    # Сохраняем локально на Google Диск
+    try:
+        import os
+        export_dir = r"G:\Мой диск\XML files"
+        os.makedirs(export_dir, exist_ok=True)
+        with open(os.path.join(export_dir, 'waybills.xml'), 'w', encoding='utf-8') as f:
+            f.write(xml_str)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Не удалось сохранить XML на Google Диск: {str(e)}"
+        )
+
     return Response(content=xml_str, media_type="application/xml")
 
 @router.post("/waybills")

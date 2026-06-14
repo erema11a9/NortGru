@@ -341,3 +341,10 @@ select.fin{cursor:pointer;} textarea.fin{resize:vertical;min-height:68px;}
     content: attr(data-label); position: absolute; left: 14px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; width: 35%; align-self: flex-start; margin-top: 1px;
   }
 }
+
+/* ─── FORM SECTION TITLE ─── */
+.form-section-title {
+  font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;
+  letter-spacing:.6px;padding:6px 0 6px 0;margin-bottom:8px;
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;
+}

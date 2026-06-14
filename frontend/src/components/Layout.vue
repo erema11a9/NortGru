@@ -118,6 +118,7 @@ const pOpen = ref(false)
 
 // Маппинг ролей
 const roleLabelMap = {
+  admin: 'Администратор',
   director: 'Директор',
   manager: 'Финансовый менеджер',
   master: 'Мастер-бригадир',
@@ -128,6 +129,7 @@ const roleLabel = computed(() => roleLabelMap[auth.user?.role] || '')
 // Счетчики для бейджей
 const pendingCount = ref(0)
 const activeTrips = ref(0)
+const approvalsCount = ref(0)
 
 async function loadStats() {
   try {
@@ -136,6 +138,16 @@ async function loadStats() {
     activeTrips.value = data.active_trips || 0
   } catch (e) {
     console.warn('Stats load failed')
+  }
+}
+
+async function fetchApprovalsCount() {
+  if (!['admin', 'director'].includes(auth.user?.role)) return
+  try {
+    const { data } = await api.get('/auth/pending')
+    approvalsCount.value = data.length
+  } catch (e) {
+    console.warn('Approvals count load failed')
   }
 }
 
@@ -149,7 +161,11 @@ async function fetchNotifs() {
 onMounted(() => {
   loadStats()
   fetchNotifs()
-  setInterval(fetchNotifs, 15000)
+  fetchApprovalsCount()
+  setInterval(() => {
+    fetchNotifs()
+    fetchApprovalsCount()
+  }, 15000)
 })
 
 // Навигация
@@ -157,10 +173,15 @@ const navItems = computed(() => {
   const items = [
     { id: 'dashboard', label: 'Главная', icon: 'fas fa-home' },
     { id: 'mcp', label: 'AI Помощник', icon: 'fas fa-robot', badge: 'AI' },
+    { id: 'knowledge', label: 'База знаний', icon: 'fas fa-book' },
     { id: 'warehouse', label: 'Склад (Торф)', icon: 'fas fa-warehouse' },
     { id: 'transport', label: 'Транспорт', icon: 'fas fa-truck-moving', badge: activeTrips.value || null },
     { id: 'documents', label: 'Документы', icon: 'fas fa-file-alt', badge: pendingCount.value || null },
   ]
+
+  if (['admin', 'director'].includes(auth.user?.role)) {
+    items.push({ id: 'approvals', label: 'Заявки', icon: 'fas fa-user-plus', badge: approvalsCount.value || null })
+  }
 
   if (auth.canAnalytics) {
     items.push({ id: 'analytics', label: 'Аналитика', icon: 'fas fa-chart-line' })
@@ -181,10 +202,12 @@ function navClick(item) {
 const pageTitleMap = {
   dashboard: 'Главная',
   mcp: 'AI Помощник',
+  knowledge: 'База знаний',
   warehouse: 'Склад торфа',
   transport: 'Транспорт и логистика',
   documents: 'Документооборот',
   analytics: 'Аналитика',
+  approvals: 'Заявки на регистрацию',
   profile: 'Мой профиль',
 }
 const pageTitle = computed(() => pageTitleMap[route.path.replace('/', '')] || '')

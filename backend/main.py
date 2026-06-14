@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 # Импортируем роутеры (убедись, что в них внутри тоже обновлен импорт моделей)
-from routers import auth, warehouse, documents, analytics, transport, notifications
+from routers import auth, warehouse, documents, analytics, transport, notifications, mcp, knowledge
 from database import engine, Base
 
 @asynccontextmanager
@@ -14,12 +14,38 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="NortGru API",
-    description="Корпоративный личный кабинет (PostgreSQL Version)",
+    description="Корпоративный личный кабинет",
     version="1.1.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     lifespan=lifespan,
 )
+
+# ── Logging Middlewares/Handlers for Debugging ────────────────────────────────
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+import traceback
+
+@app.exception_handler(Exception)
+async def debug_exception_handler(request, exc):
+    try:
+        with open("backend_errors.log", "a", encoding="utf-8") as f:
+            f.write(f"\n--- EXCEPTION on {request.url.path}: {exc} ---\n")
+            f.write(traceback.format_exc())
+    except Exception as e:
+        print(f"Logging failed: {e}")
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
+
+@app.exception_handler(RequestValidationError)
+async def debug_validation_handler(request, exc):
+    try:
+        with open("backend_errors.log", "a", encoding="utf-8") as f:
+            f.write(f"\n--- VALIDATION ERROR on {request.url.path}: {exc} ---\n")
+            f.write(str(exc.errors()))
+    except Exception as e:
+        print(f"Logging failed: {e}")
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 # ── CORS (Настройки для Vite) ───────────────────────────────────────────────
 # Добавил 127.0.0.1, так как браузеры иногда капризничают с localhost
@@ -45,12 +71,13 @@ app.include_router(transport.router, tags=["Transport"])
 app.include_router(documents.router, tags=["Documents"])
 app.include_router(analytics.router, tags=["Analytics"])
 app.include_router(notifications.router, tags=["Notifications"])
+app.include_router(mcp.router, tags=["MCP"])
+app.include_router(knowledge.router, tags=["Knowledge Base"])
 
 @app.get("/", tags=["Health"])
 def root():
     return {
         "status": "working", 
-        "database": "PostgreSQL", 
         "project": "NortGru",
         "version": "1.1.0"
     }
