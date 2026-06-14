@@ -25,3 +25,9 @@ dist-ssr/
 
 # Large 1C database backups
 *.dt
+
+# Environments and Secrets
+.env
+.env.*
+!.env.example
+
