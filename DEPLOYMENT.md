@@ -11,6 +11,7 @@
 4. [Настройка переменных окружения (.env)](#4-настройка-переменных-окружения-env)
 5. [Интеграция с Ollama на хост-машине](#5-интеграция-с-ollama-на-хост-машине)
 6. [Полезные команды для управления](#6-полезные-команды-для-управления)
+7. [Решение проблем с блокировкой Docker Hub в России](#7-решение-проблем-с-блокировкой-docker-hub-в-россии)
 
 ---
 
@@ -173,3 +174,51 @@ ONEC_PASSWORD=PASSWORD
   ```bash
   docker compose ps
   ```
+
+---
+
+## 7. Решение проблем с блокировкой Docker Hub в России
+
+Если при сборке (`docker compose up --build -d`) вы получаете ошибку:
+> `Error response from daemon: failed to resolve reference "docker.io/library/...": failed to do request: Head "...": net/http: TLS handshake timeout`
+или
+> `Error response from daemon: ... 403 Forbidden`
+
+Это связано с тем, что Docker Hub ограничивает скачивание образов для российских IP-адресов или соединение блокируется DPI.
+
+### Решение: Настройка локальных зеркал (Registry Mirrors)
+
+Для того чтобы Docker скачивал базовые образы (например, `postgres` и `node`) через рабочие российские зеркала, настройте конфигурационный файл Docker:
+
+1. **Откройте или создайте файл конфигурации Docker**:
+   ```bash
+   sudo nano /etc/docker/daemon.json
+   ```
+
+2. **Вставьте следующее содержимое** (список работающих зеркал от GitVerse, Beget и TimeWeb):
+   ```json
+   {
+     "registry-mirrors": [
+       "https://dh-mirror.gitverse.ru",
+       "https://dockerhub.timeweb.cloud",
+       "https://dockerhub1.beget.com",
+       "https://mirror.gcr.io"
+     ]
+   }
+   ```
+   *(Если в файле уже есть какие-то настройки, добавьте `registry-mirrors` через запятую в общий JSON-объект)*
+
+3. **Сохраните изменения**:
+   Нажмите `Ctrl+O` -> `Enter` -> `Ctrl+X` для выхода из Nano.
+
+4. **Перезапустите демон Docker**, чтобы применить настройки:
+   ```bash
+   sudo systemctl restart docker
+   ```
+
+5. **Повторите команду сборки**:
+   ```bash
+   docker compose up -d --build
+   ```
+   После этого образы успешно скачаются без сетевых ошибок.
+
