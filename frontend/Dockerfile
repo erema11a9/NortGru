@@ -6,7 +6,7 @@ WORKDIR /app
 # Copy package configurations and install dependencies
 COPY package*.json ./
 RUN npm config set registry https://registry.npmmirror.com
-RUN npm ci || npm install
+RUN npm install --include=dev
 
 # Copy application source files
 COPY . .
