@@ -27,7 +27,7 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-12393qwe}@db:5432/${POSTGRES_DB:-nortgru_db}
-      ALLOWED_ORIGINS: "http://localhost,http://localhost:80,http://127.0.0.1,http://localhost:5173"
+      ALLOWED_ORIGINS: "http://localhost,http://localhost:80,http://127.0.0.1,http://localhost:5173,https://nortgru.ru,https://www.nortgru.ru,http://nortgru.ru,http://www.nortgru.ru"
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434/api/chat}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:e4b}
       ONEC_BASE_URL: ${ONEC_BASE_URL:-http://host.docker.internal:8081/InfoBase4/hs/edu-agent}

@@ -222,3 +222,103 @@ ONEC_PASSWORD=PASSWORD
    ```
    После этого образы успешно скачаются без сетевых ошибок.
 
+
+---
+
+## 8. Настройка домена и SSL (HTTPS)
+
+Для того чтобы проект работал по вашему домену (например, `nortgru.ru`) и использовал защищенное соединение HTTPS, выполните следующие шаги.
+
+### Шаг 1: Направьте домен на IP-адрес сервера (DNS)
+В панели управления вашего регистратора домена (Reg.ru, Nic.ru, TimeWeb, Namecheap и др.) перейдите в настройки DNS и добавьте записи:
+1. **A-запись**:
+   - Имя хоста (Host/Name): `@` (или оставьте пустым)
+   - IP-адрес (Value/Points to): `IP_адрес_вашего_VPS`
+2. **CNAME-запись** (для поддержки `www`):
+   - Имя хоста (Host/Name): `www`
+   - Значение (Value/Points to): `nortgru.ru`
+
+> [!NOTE]
+> Обновление DNS-записей у провайдеров интернета по всему миру может занять от 10 минут до нескольких часов.
+
+---
+
+### Вариант А: Использование Cloudflare (Самый простой и быстрый способ)
+Если вы настроите домен через Cloudflare (пропишете NS-сервера Cloudflare в панели домена):
+1. В панели DNS Cloudflare добавьте **A-запись** с вашим IP-адресом и убедитесь, что включен переключатель **Proxy status** (оранжевое облако).
+2. Перейдите в раздел **SSL/TLS** -> **Overview** и выберите режим **Flexible** (или **Full**, если на сервере настроен самоподписанный сертификат).
+3. В этом случае Cloudflare автоматически выдаст HTTPS-сертификат для пользователей. Вам **не нужно** менять настройки Nginx или порты на сервере, так как Docker продолжает работать на 80 порту, а Cloudflare принимает HTTPS и проксирует его на ваш сервер.
+
+---
+
+### Вариант Б: Настройка SSL на сервере через Certbot и Host Nginx (Рекомендуемый стандартный способ)
+Если вы хотите выпускать сертификаты Let's Encrypt прямо на сервере без сторонних прокси-сервисов:
+
+#### 1. Освободите порт 80 для системного Nginx
+По умолчанию Docker-контейнер фронтенда занимает порт 80. Нам нужно освободить его, чтобы Nginx на хост-машине мог принимать запросы и направлять их в Docker.
+
+В файле `docker-compose.yml` измените порты для `frontend`:
+```yaml
+  frontend:
+    ...
+    ports:
+      - "8080:80"  # Изменили с "80:80" на "8080:80"
+```
+
+#### 2. Установите Nginx и Certbot на VPS
+```bash
+sudo apt update
+sudo apt install nginx certbot python3-certbot-nginx -y
+```
+
+#### 3. Настройте конфигурационный файл Nginx
+Создайте новый конфигурационный файл:
+```bash
+sudo nano /etc/nginx/sites-available/nortgru
+```
+Вставьте конфигурацию:
+```nginx
+server {
+    listen 80;
+    server_name nortgru.ru www.nortgru.ru;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+Активируйте конфигурацию и перезапустите Nginx:
+```bash
+sudo ln -s /etc/nginx/sites-available/nortgru /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+#### 4. Получите SSL сертификат Let's Encrypt
+Запустите Certbot для автоматического выпуска сертификата:
+```bash
+sudo certbot --nginx -d nortgru.ru -d www.nortgru.ru
+```
+*Certbot сам настроит защищенное HTTPS-соединение и автоматический редирект с HTTP на HTTPS.*
+
+---
+
+### Шаг 2: Настройка CORS в `.env` (Критически важно)
+Поскольку бэкенд на FastAPI защищает запросы с помощью CORS, необходимо добавить ваш новый домен в разрешенные источники.
+
+Откройте файл `.env` на сервере и обновите переменную `ALLOWED_ORIGINS`, добавив туда ваш домен (с протоколами `http` и `https`):
+```ini
+ALLOWED_ORIGINS=https://nortgru.ru,https://www.nortgru.ru,http://localhost,http://localhost:80
+```
+
+После редактирования `.env` и `docker-compose.yml` перезапустите контейнеры:
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+
