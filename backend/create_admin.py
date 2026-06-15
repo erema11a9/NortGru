@@ -33,6 +33,18 @@ def create_admin():
                 "email": "timofeev.dir@mail.ru",
                 "role": "director",
                 "password": "123"
+            },
+            {
+                "full_name": "Смирнова Елена Викторовна",
+                "email": "manager@nortgru.ru",
+                "role": "manager",
+                "password": "1234"
+            },
+            {
+                "full_name": "Ковалев Игорь Петрович",
+                "email": "driver@nortgru.ru",
+                "role": "warehouse",
+                "password": "1234"
             }
         ]
 
@@ -62,7 +74,13 @@ def create_admin():
                 )
                 
                 # Создаем запись Employee (сотрудник) для должности
-                job_title_name = "Администратор" if u_data["role"] == "admin" else "Генеральный директор"
+                job_title_map = {
+                    "admin": "Администратор",
+                    "director": "Генеральный директор",
+                    "manager": "Финансовый директор",
+                    "warehouse": "Водитель-экспедитор"
+                }
+                job_title_name = job_title_map.get(u_data["role"], "Сотрудник")
                 job_title = db.query(models.JobTitle).filter(models.JobTitle.name == job_title_name).first()
                 if not job_title:
                     job_title = models.JobTitle(name=job_title_name)

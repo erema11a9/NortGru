@@ -69,6 +69,7 @@ def seed():
         # 4. Создание Пользователей
         print("Creating users...")
         hashed_pass = pwd_context.hash("123")
+        hashed_pass_1234 = pwd_context.hash("1234")
         hashed_demo_pass = pwd_context.hash("demo123")
         
         users_data = [
@@ -94,7 +95,7 @@ def seed():
                 "phone": "+7 (999) 333-44-55",
                 "role": "manager",
                 "job": "Финансовый директор",
-                "pass": hashed_demo_pass
+                "pass": hashed_pass_1234
             },
             {
                 "full_name": "Козлов Игорь Петрович",
@@ -148,18 +149,18 @@ def seed():
         # 5. Создание Водителей (из числа сотрудников, добавим пару новых лиц)
         print("Creating drivers...")
         drivers_data = [
-            {"name": "Ковалев Игорь Петрович", "license": "79 12 345678", "snils": "123-456-789 01"},
-            {"name": "Смирнов Алексей Владимирович", "license": "27 05 987654", "snils": "987-654-321 09"},
-            {"name": "Иванов Сергей Николаевич", "license": "79 10 112233", "snils": "111-222-333 44"}
+            {"name": "Ковалев Игорь Петрович", "license": "79 12 345678", "snils": "123-456-789 01", "email": "driver@nortgru.ru", "pass": "1234"},
+            {"name": "Смирнов Алексей Владимирович", "license": "27 05 987654", "snils": "987-654-321 09", "email": "driver2@nortgru.ru", "pass": "demo123"},
+            {"name": "Иванов Сергей Николаевич", "license": "79 10 112233", "snils": "111-222-333 44", "email": "driver3@nortgru.ru", "pass": "demo123"}
         ]
         
         drivers_list = []
         for idx, d_info in enumerate(drivers_data):
             p = models.Person(
                 full_name=d_info["name"],
-                email=f"driver{idx+1}@nortgru.ru",
+                email=d_info["email"],
                 phone=f"+7 (914) 000-00-0{idx+1}",
-                password_hash=hashed_demo_pass,
+                password_hash=pwd_context.hash(d_info["pass"]),
                 is_approved=True
             )
             db.add(p)
