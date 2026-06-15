@@ -5,7 +5,7 @@
         <div class="pt">Склад товаров</div>
         <div class="ps">Мониторинг запасов и складские операции</div>
       </div>
-      <div class="ph-r" style="display: flex; gap: 10px; align-items: center;">
+      <div class="ph-r" style="align-items: center; flex-wrap: wrap;">
         <div v-if="loading || loadingAllProducts" style="color: var(--primary); font-size: 13px; display: flex; align-items: center; gap: 6px; margin-right: 8px;">
           <i class="fas fa-circle-notch fa-spin"></i>
           <span>Обновление...</span>

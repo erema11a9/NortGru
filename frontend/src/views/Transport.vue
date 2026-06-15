@@ -5,7 +5,7 @@
                 <div class="pt">Транспорт и логистика</div>
                 <div class="ps">Учет путевых листов, контроль пробега и расхода ГСМ</div>
             </div>
-            <div class="ph-r" style="display: flex; gap: 10px;">
+            <div class="ph-r" style="flex-wrap: wrap;">
                 <button class="btn btn-ghost" @click="loadData">
                     <i class="fas fa-sync-alt"></i> Обновить
                 </button>

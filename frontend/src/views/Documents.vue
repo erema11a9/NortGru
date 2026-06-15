@@ -5,7 +5,7 @@
         <div class="pt">Документооборот</div>
         <div class="ps">Создание, просмотр и согласование документов</div>
       </div>
-      <div class="ph-r" style="display: flex; gap: 10px;">
+      <div class="ph-r" style="flex-wrap: wrap;">
         <button class="btn btn-ghost" @click="exportXML">
           <i class="fas fa-file-code"></i> XML путевых листов
         </button>
