@@ -75,11 +75,11 @@
 
           <div class="fg">
             <label class="flb">Желаемая должность *</label>
-            <select v-model="requestedRole" class="fi" :disabled="loading" style="padding: 10px 12px; background: white; border: 1px solid #cbd5e1; border-radius: 8px;">
-              <option value="warehouse">Кладовщик (Склад торфа)</option>
-              <option value="driver">Водитель</option>
-              <option value="manager">Финансовый менеджер</option>
-              <option value="master">Мастер-бригадир</option>
+            <select v-model="requestedRole" class="fi" :disabled="loading" style="padding: 10px 12px; background: rgba(255, 255, 255, 0.07); color: #fff; border: 1px solid rgba(255, 255, 255, 0.13); border-radius: 9px; cursor: pointer;">
+              <option value="warehouse" style="background: #1e293b; color: #fff;">Кладовщик (Склад торфа)</option>
+              <option value="driver" style="background: #1e293b; color: #fff;">Водитель</option>
+              <option value="manager" style="background: #1e293b; color: #fff;">Финансовый менеджер</option>
+              <option value="master" style="background: #1e293b; color: #fff;">Мастер-бригадир</option>
             </select>
           </div>
 
@@ -185,6 +185,29 @@ async function doRegister() {
   if (!fullName.value || !email.value || !password.value || !confirmPassword.value) {
     error.value = 'Пожалуйста, заполните все обязательные поля'
     return
+  }
+
+  // Проверка ФИО
+  const nameParts = fullName.value.trim().split(/\s+/)
+  if (nameParts.length < 2) {
+    error.value = 'Введите имя и фамилию через пробел'
+    return
+  }
+
+  // Проверка Email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email.value.trim())) {
+    error.value = 'Введите корректный email адрес'
+    return
+  }
+
+  // Проверка Телефона
+  if (phone.value) {
+    const phoneClean = phone.value.replace(/\D/g, '')
+    if (phoneClean.length < 10) {
+      error.value = 'Введите корректный номер телефона (минимум 10 цифр)'
+      return
+    }
   }
 
   if (password.value !== confirmPassword.value) {
