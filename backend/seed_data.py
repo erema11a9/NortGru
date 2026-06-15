@@ -74,7 +74,7 @@ def seed():
         users_data = [
             {
                 "full_name": "Еремин Дмитрий Сергеевич",
-                "email": "popi.dir@mail.ru",
+                "email": "dmitry.erema@mail.ru",
                 "phone": "+7 (999) 111-22-33",
                 "role": "admin",
                 "job": "Администратор",

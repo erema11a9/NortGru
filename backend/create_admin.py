@@ -24,7 +24,7 @@ def create_admin():
         users_to_create = [
             {
                 "full_name": "Еремин Дмитрий Сергеевич",
-                "email": "popi.dir@mail.ru",
+                "email": "dmitry.erema@mail.ru",
                 "role": "admin",
                 "password": "123"
             },
