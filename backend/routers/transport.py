@@ -97,7 +97,7 @@ def export_waybills_xml(db: Session = Depends(get_db)):
             xml_str += f'\t</ПутевойЛист>\n'
     xml_str += '</Документы>'
 
-    # Сохраняем локально на Google Диск
+    # Сохраняем локально на Google Диск (резервная копия, если папка смонтирована)
     try:
         import os
         export_dir = r"G:\Мой диск\XML files"
@@ -105,7 +105,21 @@ def export_waybills_xml(db: Session = Depends(get_db)):
         with open(os.path.join(export_dir, 'waybills.xml'), 'w', encoding='utf-8') as f:
             f.write(xml_str)
     except Exception as e:
-        print(f"Предупреждение: Не удалось сохранить XML на Google Диск: {str(e)}")
+        print(f"Предупреждение: Не удалось сохранить XML на локальный Google Диск: {str(e)}")
+
+    # Отправляем напрямую в облако Google Drive через Google Apps Script Web App
+    try:
+        import httpx
+        script_url = os.getenv("GOOGLE_SCRIPT_URL", "https://script.google.com/macros/s/AKfycbxQJK61xo9pIqb-wM1yIPxKTpMRokhu3_2SVGEKTP046GTXqZsV0B9WBxjfrs-9cBE/exec")
+        response = httpx.post(
+            script_url, 
+            json={"filename": "waybills.xml", "content": xml_str}, 
+            follow_redirects=True, 
+            timeout=10.0
+        )
+        print(f"Отправка waybills.xml в Google Drive: {response.status_code}, {response.text}")
+    except Exception as e:
+        print(f"Предупреждение: Не удалось отправить XML в облако Google Drive: {str(e)}")
 
     return Response(content=xml_str, media_type="application/xml")
 
