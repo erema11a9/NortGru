@@ -329,14 +329,19 @@ async function loadData() {
 async function exportXML() {
     try {
         const response = await api.get('/transport/waybills/export_xml', { responseType: 'blob' })
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        link.setAttribute('download', 'waybills.xml')
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        app.toast('ok', 'Успех', 'XML выгружен')
+        const downloadConfirm = confirm("Данные отправлены на Google Диск. Скачать XML-файл на локальное устройство?")
+        if (downloadConfirm) {
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', 'waybills.xml')
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            app.toast('ok', 'Успех', 'Файл сохранен локально')
+        } else {
+            app.toast('ok', 'Успех', 'Файл сохранен в облако Google Диска')
+        }
     } catch (e) {
         app.toast('err', 'Ошибка', 'Не удалось выгрузить XML')
     }
