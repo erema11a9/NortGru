@@ -10,8 +10,11 @@
     <div class="g g21">
       <!-- Chat Interface -->
       <div class="card premium-chat-card" style="display: flex; flex-direction: column;">
-        <div class="ch chat-header-gradient">
+        <div class="ch chat-header-gradient" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
           <span class="ct text-white"><i class="fas fa-comments"></i> Диалог с ассистентом</span>
+          <button class="btn btn-sm btn-clear-chat" @click="clearChat" :disabled="loading" style="display: flex; align-items: center; gap: 6px;">
+            <i class="fas fa-trash-alt"></i> Очистить историю
+          </button>
         </div>
         
         <div class="cb chat-scroll" ref="chatScroll">
@@ -106,7 +109,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
 
@@ -116,14 +119,30 @@ const inputText = ref('')
 const loading = ref(false)
 const offlineMode = ref(false)
 
-const messages = ref([
-  { 
-    role: 'ai', 
-    text: 'Здравствуйте! Я ваш корпоративный AI-ассистент NortGru. Чем могу помочь? Я имею прямой доступ к складам компании, информации о транспорте и справочным материалам.',
-    isLoading: false,
-    offline: false
+const DEFAULT_WELCOME_MSG = { 
+  role: 'ai', 
+  text: 'Здравствуйте! Я ваш корпоративный AI-ассистент NortGru. Чем могу помочь? Я имею прямой доступ к складам компании, информации о транспорте и справочным материалам.',
+  isLoading: false,
+  offline: false
+}
+
+// Загрузка истории чата из localStorage
+const savedHistory = localStorage.getItem('nortgru_mcp_chat_history')
+const messages = ref(savedHistory ? JSON.parse(savedHistory) : [DEFAULT_WELCOME_MSG])
+
+function saveChatHistory() {
+  // Фильтруем временные сообщения загрузки
+  const filtered = messages.value.filter(m => !m.isLoading)
+  localStorage.setItem('nortgru_mcp_chat_history', JSON.stringify(filtered))
+}
+
+function clearChat() {
+  if (confirm('Вы уверены, что хотите очистить историю чата?')) {
+    messages.value = [DEFAULT_WELCOME_MSG]
+    localStorage.removeItem('nortgru_mcp_chat_history')
+    offlineMode.value = false
   }
-])
+}
 
 function scrollToBottom() {
   nextTick(() => {
@@ -133,6 +152,10 @@ function scrollToBottom() {
   })
 }
 
+onMounted(() => {
+  scrollToBottom()
+})
+
 async function sendUserMessage() {
   const text = inputText.value.trim()
   if (!text) return
@@ -141,6 +164,7 @@ async function sendUserMessage() {
   messages.value.push({ role: 'user', text: text })
   inputText.value = ''
   scrollToBottom()
+  saveChatHistory() // Сохраняем сообщение пользователя
 
   // Включаем статус загрузки
   loading.value = true
@@ -174,10 +198,12 @@ async function sendUserMessage() {
     if (response.data.tools_called && response.data.tools_called.length > 0) {
       messages.value[aiMsgIdx].toolCall = response.data.tools_called.join(', ')
     }
+    saveChatHistory() // Сохраняем ответ ИИ
   } catch (err) {
     messages.value[aiMsgIdx].isLoading = false
     messages.value[aiMsgIdx].text = 'Ошибка соединения с сервером бэкенда. Убедитесь, что бэкенд запущен.'
     console.error(err)
+    saveChatHistory() // Сохраняем состояние ошибки
   } finally {
     loading.value = false
     scrollToBottom()
@@ -514,5 +540,17 @@ function renderMarkdown(text) {
   padding: 2px 4px;
   border-radius: 4px;
   font-size: 11px;
+}
+
+.btn-clear-chat {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+  transition: all 0.2s;
+}
+.btn-clear-chat:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
 }
 </style>
