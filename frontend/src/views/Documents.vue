@@ -447,7 +447,7 @@ async function exportXML() {
   try {
     app.toast('info', 'XML', 'Формирование XML-файла...')
     const response = await api.get('/documents/export_xml', { responseType: 'blob' })
-    const downloadConfirm = confirm("Данные путевых листов отправлены на Google Диск. Скачать XML-файл на локальное устройство?")
+    const downloadConfirm = confirm("Данные отправлены. Скачать XML-файл на локальное устройство?")
     if (downloadConfirm) {
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
@@ -458,7 +458,7 @@ async function exportXML() {
       document.body.removeChild(link)
       app.toast('ok', 'Успешно', 'Файл сохранен локально')
     } else {
-      app.toast('ok', 'Успешно', 'Файл сохранен в облако Google Диска')
+      app.toast('ok', 'Успешно', 'Данные отправлены')
     }
   } catch (e) {
     app.toast('err', '❌ Ошибка', 'Не удалось выгрузить XML')
@@ -467,9 +467,9 @@ async function exportXML() {
 
 async function exportEmploymentXML() {
   try {
-    app.toast('info', 'XML', 'Формирование XML трудовых договоров...')
+    app.toast('info', 'XML', 'Формирование XML-файла...')
     const response = await api.get('/documents/export_xml_employment', { responseType: 'blob' })
-    const downloadConfirm = confirm("Данные трудовых договоров отправлены на Google Диск. Скачать XML-файл на локальное устройство?")
+    const downloadConfirm = confirm("Данные отправлены. Скачать XML-файл на локальное устройство?")
     if (downloadConfirm) {
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/xml' }))
       const link = document.createElement('a')
@@ -481,7 +481,7 @@ async function exportEmploymentXML() {
       window.URL.revokeObjectURL(url)
       app.toast('ok', '✅ Готово', 'Файл сохранен локально')
     } else {
-      app.toast('ok', '✅ Готово', 'Файл сохранен в облако Google Диска')
+      app.toast('ok', '✅ Готово', 'Данные отправлены')
     }
   } catch (e) {
     app.toast('err', '❌ Ошибка', 'Не удалось выгрузить XML договоров')

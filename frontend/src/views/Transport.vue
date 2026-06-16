@@ -328,8 +328,9 @@ async function loadData() {
 
 async function exportXML() {
     try {
+        app.toast('info', 'XML', 'Формирование XML-файла...')
         const response = await api.get('/transport/waybills/export_xml', { responseType: 'blob' })
-        const downloadConfirm = confirm("Данные отправлены на Google Диск. Скачать XML-файл на локальное устройство?")
+        const downloadConfirm = confirm("Данные отправлены. Скачать XML-файл на локальное устройство?")
         if (downloadConfirm) {
             const url = window.URL.createObjectURL(new Blob([response.data]))
             const link = document.createElement('a')
@@ -340,7 +341,7 @@ async function exportXML() {
             document.body.removeChild(link)
             app.toast('ok', 'Успех', 'Файл сохранен локально')
         } else {
-            app.toast('ok', 'Успех', 'Файл сохранен в облако Google Диска')
+            app.toast('ok', 'Успех', 'Данные отправлены')
         }
     } catch (e) {
         app.toast('err', 'Ошибка', 'Не удалось выгрузить XML')
