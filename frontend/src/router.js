@@ -44,8 +44,8 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
-  const token = localStorage.getItem('nortgru_token')
-  const userRaw = localStorage.getItem('nortgru_user')
+  const token = sessionStorage.getItem('nortgru_token')
+  const userRaw = sessionStorage.getItem('nortgru_user')
   const user = userRaw ? JSON.parse(userRaw) : null
 
   // 1. Проверка авторизации

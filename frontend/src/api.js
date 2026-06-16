@@ -9,7 +9,7 @@ const api = axios.create({
 
 // Добавляем токен к каждому запросу
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('nortgru_token')
+  const token = sessionStorage.getItem('nortgru_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -25,8 +25,8 @@ api.interceptors.response.use(
     // 2. Улучшенная логика разлогина
     if (err.response?.status === 401) {
       // Очищаем хранилище
-      localStorage.removeItem('nortgru_token')
-      localStorage.removeItem('nortgru_user')
+      sessionStorage.removeItem('nortgru_token')
+      sessionStorage.removeItem('nortgru_user')
 
       // Чтобы не зациклить редирект, если мы и так на странице логина
       if (window.location.pathname !== '/login') {
