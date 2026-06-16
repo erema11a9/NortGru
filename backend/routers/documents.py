@@ -126,10 +126,7 @@ def export_employment_xml(db: Session = Depends(get_db)):
         with open(os.path.join(export_dir, 'trudovye_dogovory.xml'), 'w', encoding='utf-8') as f:
             f.write(xml_str)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Не удалось сохранить XML на Google Диск: {str(e)}"
-        )
+        print(f"Предупреждение: Не удалось сохранить XML на Google Диск: {str(e)}")
     
     filename = 'trudovye_dogovory.xml'
     filename_encoded = urllib.parse.quote(filename)
@@ -179,10 +176,7 @@ def export_docs_xml(db: Session = Depends(get_db)):
         with open(os.path.join(export_dir, 'documents_waybills.xml'), 'w', encoding='utf-8') as f:
             f.write(xml_str)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Не удалось сохранить XML на Google Диск: {str(e)}"
-        )
+        print(f"Предупреждение: Не удалось сохранить XML на Google Диск: {str(e)}")
         
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate",
