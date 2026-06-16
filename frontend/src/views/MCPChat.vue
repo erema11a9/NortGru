@@ -38,7 +38,7 @@
               
               <!-- Tool Executed Log -->
               <div v-if="m.toolCall" class="msg-tool-log">
-                <i class="fas fa-cog fa-spin"></i> Использован инструмент: <code>{{ m.toolCall }}</code>
+                <i class="fas fa-cog fa-spin"></i> Использован инструмент: <code>{{ formatToolCall(m.toolCall) }}</code>
               </div>
             </div>
 
@@ -235,6 +235,26 @@ async function sendUserMessage(action = null) {
 
 function callTool(toolId, toolName) {
   sendUserMessage(toolId)
+}
+
+const TOOL_NAMES_MAP = {
+  'get_local_warehouse_summary': 'Сводка по складам',
+  'get_warehouse_summary': 'Сводка по складам',
+  'get_local_vehicles_and_drivers': 'Транспорт и водители',
+  'analyze_waybills': 'Транспорт и водители',
+  'search_knowledge_base': 'Поиск в базе знаний',
+  'ping_1c_service': 'Проверка связи с 1С',
+  'generate_report': 'Проверка связи с 1С',
+  'discover_1c_metadata': 'Запрос метаданных 1С',
+  'query_1c_data': 'Запрос данных из 1С'
+}
+
+function formatToolCall(toolCall) {
+  if (!toolCall) return ''
+  return toolCall
+    .split(', ')
+    .map(name => TOOL_NAMES_MAP[name] || name)
+    .join(', ')
 }
 
 // Lightweight Markdown renderer
