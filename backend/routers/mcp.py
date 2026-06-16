@@ -39,6 +39,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
+    action: Optional[str] = None
 
 # --- Определение локальных инструментов для базы данных ---
 
@@ -194,41 +195,97 @@ OLLAMA_TOOLS = [
         "type": "function",
         "function": {
           "name": "query_1c_data",
-          "description": "Запросить табличные данные из конкретного объекта 1С по его datasetId (например: 1c://object/document/РекламационныеАкты)",
+          "description": "Запросить данные (рекламации, поступления, контрагентов) из 1С",
           "parameters": {
             "type": "object",
             "properties": {
               "dataset_id": {
                 "type": "string",
-                "description": "Уникальный ID объекта 1С"
+                "description": "Идентификатор набора данных (1c://object/document/РекламационныеАкты, 1c://object/document/ПоступлениеТоваровУслуг, 1c://object/catalog/Контрагенты)"
               },
               "role": {
                 "type": "string",
-                "description": "Роль доступа для проверки прав в 1С"
+                "description": "Роль доступа (admin, director, accountant, study-office, department-head)",
+                "default": "admin"
               },
               "period_start": {
                 "type": "string",
-                "description": "Начальная дата периода в формате YYYY-MM-DD (необязательно)"
+                "description": "Начало периода (ГГГГ-ММ-ДД)"
               },
               "period_end": {
                 "type": "string",
-                "description": "Конечная дата периода в формате YYYY-MM-DD (необязательно)"
+                "description": "Конец периода (ГГГГ-ММ-ДД)"
               },
               "query_text": {
                 "type": "string",
-                "description": "Строка поиска или текстовый фильтр (необязательно)"
+                "description": "Текст полнотекстового поиска"
               },
               "limit": {
                 "type": "integer",
-                "description": "Максимальное количество возвращаемых строк",
+                "description": "Лимит записей",
                 "default": 50
               }
             },
-            "required": ["dataset_id", "role"]
+            "required": ["dataset_id"]
           }
         }
     }
 ]
+
+# --- Помощник для форматирования результатов выполнения инструментов ---
+def format_tool_result(name: str, result: str, primary_role: str) -> str:
+    if not result:
+        return "Результат выполнения инструмента пуст."
+    
+    if name == "discover_1c_metadata":
+        try:
+            data = json.loads(result)
+            content = "=== Доступные объекты интеграции 1С ===\n\n"
+            for obj in data.get("objects", []):
+                content += f"- **{obj['name']}**: {obj['description']}\n"
+                content += f"  Поля: {', '.join(obj['fields'])}\n"
+            return content.strip()
+        except Exception:
+            return result
+            
+    elif name == "query_1c_data":
+        try:
+            data = json.loads(result)
+            if not isinstance(data, list):
+                return result
+            
+            if data and "ПричинаБрака" in data[0]:
+                content = "=== Рекламационные акты из 1С ===\n\n"
+                for item in data:
+                    content += f"- **{item.get('Номер', '—')}** от {item.get('Дата', '—')} (Контрагент: {item.get('Контрагент', '—')}, Склад: {item.get('Склад', '—')})\n"
+                    content += f"  Сумма: **{item.get('СуммаДокумента', 0)} руб.** | Причина: {item.get('ПричинаБрака', '—')} | Статус: *{item.get('Статус', '—')}*\n"
+                return content.strip()
+            elif data and "Комментарий" in data[0]:
+                content = "=== Поступления товаров и услуг из 1С ===\n\n"
+                for item in data:
+                    content += f"- **{item.get('Номер', '—')}** от {item.get('Дата', '—')} (Поставщик: {item.get('Контрагент', '—')}, Склад: {item.get('Склад', '—')})\n"
+                    content += f"  Сумма: **{item.get('СуммаДокумента', 0)} руб.** | Комментарий: {item.get('Комментарий', '—')}\n"
+                return content.strip()
+            elif data and "ИНН" in data[0]:
+                content = "=== Справочник Контрагенты из 1С ===\n\n"
+                for item in data:
+                    content += f"- **{item.get('Наименование', '—')}** (Код: {item.get('Код', '—')}, ИНН: {item.get('ИНН', '—')})\n"
+                    content += f"  Юр. адрес: {item.get('ЮридическийАдрес', '—')}\n"
+                return content.strip()
+            else:
+                content = "=== Результат запроса 1С ===\n\n"
+                for idx, item in enumerate(data[:15]):
+                    content += f"Запись {idx+1}:\n"
+                    for k, v in item.items():
+                        content += f"- **{k}**: {v}\n"
+                    content += "\n"
+                if len(data) > 15:
+                    content += f"...и еще {len(data) - 15} записей."
+                return content.strip()
+        except Exception:
+            return result
+            
+    return result
 
 # --- Основной обработчик чата с поддержкой инструментов ---
 
@@ -238,6 +295,73 @@ async def mcp_chat_endpoint(
     db: Session = Depends(get_db),
     current_user: models.Person = Depends(get_current_user)
 ):
+    # Извлекаем роль пользователя
+    user_roles = [r.role_type for r in current_user.roles]
+    primary_role = user_roles[0] if user_roles else "user"
+    
+    # Если передан конкретный экшн (быстрое действие с фронтенда)
+    if request.action:
+        logger.info(f"Direct MCP Action: {request.action}")
+        if request.action == "get_warehouse_summary":
+            result = await get_local_warehouse_summary(db)
+            formatted = format_tool_result("get_local_warehouse_summary", result, primary_role)
+            return {
+                "role": "assistant",
+                "content": formatted,
+                "tools_called": ["get_local_warehouse_summary"],
+                "offline": False
+            }
+        elif request.action == "analyze_waybills":
+            result = await get_local_vehicles_and_drivers(db)
+            formatted = format_tool_result("get_local_vehicles_and_drivers", result, primary_role)
+            return {
+                "role": "assistant",
+                "content": formatted,
+                "tools_called": ["get_local_vehicles_and_drivers"],
+                "offline": False
+            }
+        elif request.action == "generate_report":
+            result = await ping_1c()
+            formatted = format_tool_result("ping_1c_service", result, primary_role)
+            return {
+                "role": "assistant",
+                "content": formatted,
+                "tools_called": ["ping_1c_service"],
+                "offline": False
+            }
+
+    # Прямой перехват для быстрого ответа по кнопкам (MCP Quick Actions) по тексту
+    last_msg = request.messages[-1].content if request.messages else ""
+    last_msg_lower = last_msg.lower().strip()
+    
+    if "сводку по остаткам на складах" in last_msg_lower or last_msg_lower == "покажи сводку по остаткам на складах":
+        logger.info("MCP Quick Action: get_local_warehouse_summary")
+        summary = await get_local_warehouse_summary(db)
+        return {
+            "role": "assistant",
+            "content": summary,
+            "tools_called": ["get_local_warehouse_summary"],
+            "offline": False
+        }
+    elif "активных путевых листов и машин" in last_msg_lower or last_msg_lower == "покажи список активных путевых листов и машин" or "список активных путевых листов" in last_msg_lower:
+        logger.info("MCP Quick Action: get_local_vehicles_and_drivers")
+        summary = await get_local_vehicles_and_drivers(db)
+        return {
+            "role": "assistant",
+            "content": summary,
+            "tools_called": ["get_local_vehicles_and_drivers"],
+            "offline": False
+        }
+    elif "проверь подключение к 1с" in last_msg_lower or last_msg_lower == "проверить подключение к 1с":
+        logger.info("MCP Quick Action: ping_1c_service")
+        summary = await ping_1c()
+        return {
+            "role": "assistant",
+            "content": summary,
+            "tools_called": ["ping_1c_service"],
+            "offline": False
+        }
+
     # Превращаем историю сообщений в формат Ollama
     history = []
     for msg in request.messages:
@@ -249,9 +373,6 @@ async def mcp_chat_endpoint(
         history.append(item)
     
     # Добавляем системную инструкцию в начало диалога
-    user_roles = [r.role_type for r in current_user.roles]
-    primary_role = user_roles[0] if user_roles else "user"
-    
     system_instruction = (
         "Ты — корпоративный AI-ассистент компании NortGru. "
         "Твоя задача — отвечать на вопросы о работе компании NortGru, её складах торфа, транспорте, логистике, базе знаний и интеграции с 1С.\n"
@@ -278,6 +399,7 @@ async def mcp_chat_endpoint(
     
     # Короткий таймаут на коннект (3 сек), длинный на генерацию текста ИИ (25 сек)
     timeout_config = httpx.Timeout(25.0, connect=3.0)
+    
     async with httpx.AsyncClient(timeout=timeout_config) as client:
         for step in range(max_steps):
             logger.info(f"Ollama Request Step {step + 1} with {len(history)} messages")
@@ -359,13 +481,14 @@ async def mcp_chat_endpoint(
                             )
                     else:
                         result = f"Инструмент {name} не найден на бэкенде."
-                    
-                    # Отправляем результат выполнения инструмента обратно в Ollama
-                    history.append({
-                        "role": "tool",
-                        "name": name,
-                        "content": str(result)
-                    })
+                    # Прямой возврат результата работы инструмента для мгновенного ответа
+                    formatted_content = format_tool_result(name, result, primary_role)
+                    return {
+                        "role": "assistant",
+                        "content": formatted_content,
+                        "tools_called": tools_called,
+                        "offline": False
+                    }
                     
             except (httpx.ConnectError, httpx.HTTPError, Exception) as e:
                 # Включаем умный офлайн-режим при любой ошибке ИИ

@@ -156,13 +156,29 @@ onMounted(() => {
   scrollToBottom()
 })
 
-async function sendUserMessage() {
-  const text = inputText.value.trim()
-  if (!text) return
+async function sendUserMessage(action = null) {
+  let messageText = ''
+  if (action) {
+    if (action === 'get_warehouse_summary') {
+      messageText = 'Покажи сводку по остаткам на складах'
+    } else if (action === 'analyze_waybills') {
+      messageText = 'Покажи список активных путевых листов и машин'
+    } else if (action === 'generate_report') {
+      messageText = 'Проверить подключение к 1С'
+    } else {
+      messageText = action
+    }
+  } else {
+    messageText = inputText.value.trim()
+  }
+
+  if (!messageText) return
 
   // Добавляем сообщение пользователя
-  messages.value.push({ role: 'user', text: text })
-  inputText.value = ''
+  messages.value.push({ role: 'user', text: messageText })
+  if (!action) {
+    inputText.value = ''
+  }
   scrollToBottom()
   saveChatHistory() // Сохраняем сообщение пользователя
 
@@ -180,9 +196,14 @@ async function sendUserMessage() {
         content: m.text
       }))
 
-    const response = await api.post('/mcp/chat', {
+    const payload = {
       messages: historyForBackend
-    }, {
+    }
+    if (action) {
+      payload.action = action
+    }
+
+    const response = await api.post('/mcp/chat', payload, {
       timeout: 60000
     })
 
@@ -211,14 +232,7 @@ async function sendUserMessage() {
 }
 
 function callTool(toolId, toolName) {
-  if (toolId === 'get_warehouse_summary') {
-    inputText.value = 'Покажи сводку по остаткам на складах'
-  } else if (toolId === 'analyze_waybills') {
-    inputText.value = 'Покажи список активных путевых листов и машин'
-  } else if (toolId === 'generate_report') {
-    inputText.value = 'Проверь подключение к 1С'
-  }
-  sendUserMessage()
+  sendUserMessage(toolId)
 }
 
 // Lightweight Markdown renderer
