@@ -1,0 +1,15 @@
+User-agent: *
+# Разрешаем индексировать главную и страницу входа
+Allow: /$
+Allow: /login
+
+# Запрещаем индексировать внутренние рабочие разделы личного кабинета
+Disallow: /dashboard
+Disallow: /documents
+Disallow: /warehouse
+Disallow: /transport
+Disallow: /notifications
+Disallow: /api/
+
+# Ссылка на карту сайта (если в будущем добавите)
+Sitemap: https://nortgru.ru/sitemap.xml
