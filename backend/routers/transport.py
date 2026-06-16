@@ -24,13 +24,57 @@ class CompleteWaybillRequest(BaseModel):
 
 @router.get("/vehicles")
 def get_vehicles(db: Session = Depends(get_db), current_user: models.Person = Depends(get_current_user)):
-    # Возвращаем в формате, который ожидает фронт
     vehicles = db.query(models.Vehicle).all()
-    return [{"id": v.id, "name": v.brand, "plate": v.gov_number} for v in vehicles]
+    # Возвращаем полные объекты с сохранением совместимости с именами полей
+    return [
+        {
+            "id": v.id,
+            "brand": v.brand,
+            "gov_number": v.gov_number,
+            "name": v.brand,
+            "plate": v.gov_number,
+            "fuel_type": v.fuel_type,
+            "garage_number": v.garage_number,
+            "max_payload": v.max_payload,
+            "current_mileage": v.current_mileage,
+            "description": v.description
+        }
+        for v in vehicles
+    ]
 
 @router.post("/vehicles", status_code=status.HTTP_201_CREATED)
-def create_vehicle(vehicle: dict, db: Session = Depends(get_db), _: models.Person = Depends(get_current_user)):
-    pass # Реализация не менялась, убрал schemas.VehicleCreate чтобы избежать ошибок, если ее нет
+def create_vehicle(vehicle_data: dict, db: Session = Depends(get_db), _: models.Person = Depends(get_current_user)):
+    try:
+        new_v = models.Vehicle(
+            brand=vehicle_data.get("brand"),
+            gov_number=vehicle_data.get("gov_number"),
+            fuel_type=vehicle_data.get("fuel_type", "ДТ"),
+            garage_number=vehicle_data.get("garage_number"),
+            max_payload=float(vehicle_data.get("max_payload", 0.0) or 0.0),
+            current_mileage=float(vehicle_data.get("current_mileage", 0.0) or 0.0),
+            description=vehicle_data.get("description", "")
+        )
+        db.add(new_v)
+        db.commit()
+        db.refresh(new_v)
+        return {
+            "id": new_v.id,
+            "brand": new_v.brand,
+            "gov_number": new_v.gov_number,
+            "name": new_v.brand,
+            "plate": new_v.gov_number,
+            "fuel_type": new_v.fuel_type,
+            "garage_number": new_v.garage_number,
+            "max_payload": new_v.max_payload,
+            "current_mileage": new_v.current_mileage,
+            "description": new_v.description
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ошибка при создании транспортного средства: {str(e)}"
+        )
 
 # --- ПУТЕВЫЕ ЛИСТЫ ---
 

@@ -18,6 +18,7 @@ DOC_PREFIXES = {
     "travel":     "КМД",
     "waybill":    "ТМ",
     "employment": "ТД",
+    "transport_waybill": "ТРН",
 }
 
 STATUS_LABELS = {
@@ -32,6 +33,7 @@ TYPE_LABELS = {
     "travel":     "Командировка",
     "waybill":    "Путевой лист",
     "employment": "Трудовой договор",
+    "transport_waybill": "Транспортная накладная",
 }
 
 

@@ -25,6 +25,7 @@
       <div :class="['tab', filter === 'travel' && 'act']" @click="filter = 'travel'">Командировки</div>
       <div :class="['tab', filter === 'waybill' && 'act']" @click="filter = 'waybill'">Путевые листы</div>
       <div :class="['tab', filter === 'employment' && 'act']" @click="filter = 'employment'">Договоры</div>
+      <div :class="['tab', filter === 'transport_waybill' && 'act']" @click="filter = 'transport_waybill'">Транспортные накладные</div>
     </div>
 
     <!-- Loading -->
@@ -123,6 +124,15 @@
             <p class="mb2" v-if="viewDoc.status === 'rejected' && parseExtra(viewDoc.extra_data)?.rejection_reason" style="color:var(--err);">
               <b>Причина отказа:</b> {{ parseExtra(viewDoc.extra_data).rejection_reason }}
             </p>
+            <!-- Extra info for Transport Waybill -->
+            <div v-if="viewDoc.document_type === 'transport_waybill'" style="margin-top:12px; margin-bottom:12px; padding:12px; background:#fff; border:1px dashed var(--border); border-radius:6px; font-size:13px; display:flex; flex-direction:column; gap:4px;">
+              <div><b>Номер накладной:</b> {{ parseExtra(viewDoc.extra_data).waybill_number || '—' }}</div>
+              <div><b>Перевозчик:</b> {{ parseExtra(viewDoc.extra_data).carrier || '—' }}</div>
+              <div><b>Груз:</b> {{ parseExtra(viewDoc.extra_data).cargo_name || '—' }} ({{ parseExtra(viewDoc.extra_data).cargo_weight || '0' }} т)</div>
+              <div><b>Маршрут:</b> {{ parseExtra(viewDoc.extra_data).load_point || '—' }} &rarr; {{ parseExtra(viewDoc.extra_data).unload_point || '—' }}</div>
+              <div><b>Транспорт:</b> {{ parseExtra(viewDoc.extra_data).vehicle || '—' }}</div>
+              <div><b>Водитель:</b> {{ parseExtra(viewDoc.extra_data).driver || '—' }}</div>
+            </div>
             <hr style="margin:12px 0;border:none;border-top:1px solid var(--border);" />
             <p class="fs12 tm">Документ сформирован автоматически системой NortGru. Для получения версии .docx используйте кнопку «Печать».</p>
             <p class="mt2 fs12"><i class="fas fa-building tm"></i> <b>ООО «НОРД-ИСТ ГРУПП»</b>, г. Биробиджан / г. Хабаровск</p>
@@ -209,6 +219,7 @@
               <option value="travel">🚁 Приказ на командировку</option>
               <option value="waybill">🚛 Путевой лист</option>
               <option value="employment">📄 Трудовой договор</option>
+              <option value="transport_waybill">📦 Транспортная накладная</option>
             </select>
           </div>
           <div class="fgr">
@@ -273,6 +284,26 @@
             </div>
             <div class="frow2">
               <div class="fgr" style="width:100%"><label class="fll">Сумма затрат (авторасчет)</label><input v-model="nd.fuel_cost" class="fin" type="number" readonly style="background:#e2e8f0;font-weight:bold;color:#333;" /></div>
+            </div>
+          </template>
+
+          <!-- Transport Waybill fields -->
+          <template v-if="newType === 'transport_waybill'">
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Номер накладной</label><input v-model="nd.waybill_number" class="fin" placeholder="ТН-100" /></div>
+              <div class="fgr"><label class="fll">Перевозчик</label><input v-model="nd.carrier" class="fin" placeholder="ООО «НОРД-ИСТ ГРУПП»" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Наименование груза</label><input v-model="nd.cargo_name" class="fin" placeholder="Торф верховой кусковой" /></div>
+              <div class="fgr"><label class="fll">Масса груза (т)</label><input v-model.number="nd.cargo_weight" class="fin" type="number" step="0.1" placeholder="20" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Пункт погрузки</label><input v-model="nd.load_point" class="fin" placeholder="г. Биробиджан, Центральный хаб" /></div>
+              <div class="fgr"><label class="fll">Пункт разгрузки</label><input v-model="nd.unload_point" class="fin" placeholder="г. Хабаровск, Терминал" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Транспорт (Гос.номер)</label><input v-model="nd.vehicle" class="fin" placeholder="Scania E777KX79" /></div>
+              <div class="fgr"><label class="fll">Водитель</label><input v-model="nd.driver" class="fin" placeholder="Ковалев И.П." /></div>
             </div>
           </template>
 
@@ -392,6 +423,8 @@ const nd         = reactive({
   s:'', e:'', reason:'', dest:'', dt:'',
   // Waybill fields
   series_number: '', vehicle: '', driver: '', period_info: '', route_from: '', route_to: '', departure_time: '', arrival_time: '', distance_km: '', fuel_mark: 'ДТ', fuel_price: '', fuel_cost: '', fuel_issued: '', fuel_handed_over: '', fuel_rate: '',
+  // Transport Waybill fields
+  waybill_number: '', carrier: '', cargo_name: '', cargo_weight: '', load_point: '', unload_point: '',
   // Employment — Главное
   organization: '', contract_number: '', contract_type: '', hire_date: '',
   department: '', territory: '', position_staff: '', job_title: '',
@@ -405,8 +438,8 @@ const nd         = reactive({
   tabel_number: '', phone: '', email: ''
 })
 
-const typeLabels = { vacation:'Заявка на отпуск', travel:'Командировка', waybill:'Путевой лист', employment:'Трудовой договор' }
-const filterLabelMap = { all:'Все документы', vacation:'Заявки на отпуск', travel:'Командировки', waybill:'Путевые листы', employment:'Трудовые договоры' }
+const typeLabels = { vacation:'Заявка на отпуск', travel:'Командировка', waybill:'Путевой лист', employment:'Трудовой договор', transport_waybill:'Транспортная накладная' }
+const filterLabelMap = { all:'Все документы', vacation:'Заявки на отпуск', travel:'Командировки', waybill:'Путевые листы', employment:'Трудовые договоры', transport_waybill:'Транспортные накладные' }
 function typeLabel(t) { return typeLabels[t] || t }
 
 function calcFuelCost() {
