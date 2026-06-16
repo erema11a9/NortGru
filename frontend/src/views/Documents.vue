@@ -447,19 +447,18 @@ async function exportXML() {
   try {
     app.toast('info', 'XML', 'Формирование XML-файла...')
     const response = await api.get('/documents/export_xml', { responseType: 'blob' })
-    const downloadConfirm = confirm("Данные отправлены. Скачать XML-файл на локальное устройство?")
-    if (downloadConfirm) {
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', 'documents_waybills.xml')
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      app.toast('ok', 'Успешно', 'Файл сохранен локально')
-    } else {
-      app.toast('ok', 'Успешно', 'Данные отправлены')
-    }
+    app.toast('ok', '✅ Готово', 'Данные отправлены', 8000, {
+      label: 'Скачать',
+      callback: () => {
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', 'documents_waybills.xml')
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
+    })
   } catch (e) {
     app.toast('err', '❌ Ошибка', 'Не удалось выгрузить XML')
   }
@@ -469,20 +468,19 @@ async function exportEmploymentXML() {
   try {
     app.toast('info', 'XML', 'Формирование XML-файла...')
     const response = await api.get('/documents/export_xml_employment', { responseType: 'blob' })
-    const downloadConfirm = confirm("Данные отправлены. Скачать XML-файл на локальное устройство?")
-    if (downloadConfirm) {
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/xml' }))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', 'trudovye_dogovory.xml')
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      app.toast('ok', '✅ Готово', 'Файл сохранен локально')
-    } else {
-      app.toast('ok', '✅ Готово', 'Данные отправлены')
-    }
+    app.toast('ok', '✅ Готово', 'Данные отправлены', 8000, {
+      label: 'Скачать',
+      callback: () => {
+        const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/xml' }))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', 'trudovye_dogovory.xml')
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      }
+    })
   } catch (e) {
     app.toast('err', '❌ Ошибка', 'Не удалось выгрузить XML договоров')
   }

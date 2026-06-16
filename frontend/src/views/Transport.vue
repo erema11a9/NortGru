@@ -330,19 +330,18 @@ async function exportXML() {
     try {
         app.toast('info', 'XML', 'Формирование XML-файла...')
         const response = await api.get('/transport/waybills/export_xml', { responseType: 'blob' })
-        const downloadConfirm = confirm("Данные отправлены. Скачать XML-файл на локальное устройство?")
-        if (downloadConfirm) {
-            const url = window.URL.createObjectURL(new Blob([response.data]))
-            const link = document.createElement('a')
-            link.href = url
-            link.setAttribute('download', 'waybills.xml')
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-            app.toast('ok', 'Успех', 'Файл сохранен локально')
-        } else {
-            app.toast('ok', 'Успех', 'Данные отправлены')
-        }
+        app.toast('ok', '✅ Готово', 'Данные отправлены', 8000, {
+            label: 'Скачать',
+            callback: () => {
+                const url = window.URL.createObjectURL(new Blob([response.data]))
+                const link = document.createElement('a')
+                link.href = url
+                link.setAttribute('download', 'waybills.xml')
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+            }
+        })
     } catch (e) {
         app.toast('err', 'Ошибка', 'Не удалось выгрузить XML')
     }
