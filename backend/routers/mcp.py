@@ -368,8 +368,8 @@ async def mcp_chat_endpoint(
                     })
                     
             except (httpx.ConnectError, httpx.HTTPError, Exception) as e:
-                # Если Ollama недоступна на первом шаге, включаем умный офлайн-режим
-                if step == 0:
+                # Включаем умный офлайн-режим при любой ошибке ИИ
+                if True:
                     logger.warning(f"Ollama connection failed, switching to offline fallback. Error: {str(e)}")
                     
                     # Извлекаем последний вопрос пользователя
