@@ -403,7 +403,82 @@ async def mcp_chat_endpoint(
                             "tools_called": ["get_local_vehicles_and_drivers"],
                             "offline": True
                         }
-                        
+
+                    # 2.5. Поиск упоминаний 1С
+                    if any(kw in user_msg_lower for kw in ["1с", "1c", "интеграц"]):
+                        if any(kw in user_msg_lower for kw in ["подключ", "пинг", "связ", "доступ", "провер"]):
+                            ping_res = await ping_1c()
+                            return {
+                                "role": "assistant",
+                                "content": ping_res,
+                                "tools_called": ["ping_1c_service"],
+                                "offline": True
+                            }
+                        elif any(kw in user_msg_lower for kw in ["рекламац", "акт", "брак"]):
+                            rec_res = await query_1c_data(dataset_id="1c://object/document/РекламационныеАкты", role=primary_role)
+                            try:
+                                data = json.loads(rec_res)
+                                content = "=== Рекламационные акты из 1С ===\n\n"
+                                for item in data:
+                                    content += f"- **{item['Номер']}** от {item['Дата']} (Контрагент: {item['Контрагент']}, Склад: {item['Склад']})\n"
+                                    content += f"  Сумма: **{item['СуммаДокумента']} руб.** | Причина: {item['ПричинаБрака']} | Статус: *{item['Статус']}*\n"
+                            except Exception:
+                                content = rec_res
+                            return {
+                                "role": "assistant",
+                                "content": content.strip(),
+                                "tools_called": ["query_1c_data"],
+                                "offline": True
+                            }
+                        elif any(kw in user_msg_lower for kw in ["поступлен", "закупк", "тн", "услуг"]):
+                            post_res = await query_1c_data(dataset_id="1c://object/document/ПоступлениеТоваровУслуг", role=primary_role)
+                            try:
+                                data = json.loads(post_res)
+                                content = "=== Поступления товаров и услуг из 1С ===\n\n"
+                                for item in data:
+                                    content += f"- **{item['Номер']}** от {item['Дата']} (Поставщик: {item['Контрагент']}, Склад: {item['Склад']})\n"
+                                    content += f"  Сумма: **{item['СуммаДокумента']} руб.** | Комментарий: {item['Комментарий']}\n"
+                            except Exception:
+                                content = post_res
+                            return {
+                                "role": "assistant",
+                                "content": content.strip(),
+                                "tools_called": ["query_1c_data"],
+                                "offline": True
+                            }
+                        elif any(kw in user_msg_lower for kw in ["контрагент", "поставщик", "партнер"]):
+                            part_res = await query_1c_data(dataset_id="1c://object/catalog/Контрагенты", role=primary_role)
+                            try:
+                                data = json.loads(part_res)
+                                content = "=== Справочник Контрагенты из 1С ===\n\n"
+                                for item in data:
+                                    content += f"- **{item['Наименование']}** (Код: {item['Код']}, ИНН: {item['ИНН']})\n"
+                                    content += f"  Юр. адрес: {item['ЮридическийАдрес']}\n"
+                            except Exception:
+                                content = part_res
+                            return {
+                                "role": "assistant",
+                                "content": content.strip(),
+                                "tools_called": ["query_1c_data"],
+                                "offline": True
+                            }
+                        else:
+                            meta_res = await discover_1c_configuration(role=primary_role)
+                            try:
+                                data = json.loads(meta_res)
+                                content = "=== Доступные объекты интеграции 1С ===\n\n"
+                                for obj in data.get("objects", []):
+                                    content += f"- **{obj['name']}**: {obj['description']}\n"
+                                    content += f"  Поля: {', '.join(obj['fields'])}\n"
+                            except Exception:
+                                content = meta_res
+                            return {
+                                "role": "assistant",
+                                "content": content.strip(),
+                                "tools_called": ["discover_1c_metadata"],
+                                "offline": True
+                            }
+
                     # 3. Поиск в Базе Знаний по заголовкам статей
                     items = db.query(models.KnowledgeItem).all()
                     matched_articles = []
