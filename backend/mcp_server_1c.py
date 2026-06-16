@@ -28,7 +28,7 @@ async def ping_1c() -> str:
     """
     async with get_client() as client:
         try:
-            response = await client.post(f"{ONEC_BASE_URL}/ping", json={}, timeout=2.0)
+            response = await client.post(f"{ONEC_BASE_URL}/ping", json={}, timeout=httpx.Timeout(10.0, connect=2.0))
             if response.status_code == 200:
                 return f"Успешное подключение к 1С!\nОтвет сервера: {response.text}"
             else:
@@ -58,7 +58,7 @@ async def discover_1c_configuration(role: str = "admin", include_fields: bool = 
                 "role": role,
                 "includeFields": include_fields
             }
-            response = await client.post(f"{ONEC_BASE_URL}/metadata", json=payload, timeout=2.0)
+            response = await client.post(f"{ONEC_BASE_URL}/metadata", json=payload, timeout=httpx.Timeout(10.0, connect=2.0))
             if response.status_code == 200:
                 return response.text
             else:
@@ -128,7 +128,7 @@ async def query_1c_data(
                 "params": params,
                 "limit": limit
             }
-            response = await client.post(f"{ONEC_BASE_URL}/universal-data", json=payload, timeout=2.0)
+            response = await client.post(f"{ONEC_BASE_URL}/universal-data", json=payload, timeout=httpx.Timeout(10.0, connect=2.0))
             if response.status_code == 200:
                 return response.text
             else:

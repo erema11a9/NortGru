@@ -276,7 +276,9 @@ async def mcp_chat_endpoint(
     tools_called = []
     max_steps = 5 # Защита от бесконечного цикла вызовов инструментов
     
-    async with httpx.AsyncClient(timeout=2.0) as client:
+    # Короткий таймаут на коннект (3 сек), длинный на генерацию текста ИИ (25 сек)
+    timeout_config = httpx.Timeout(25.0, connect=3.0)
+    async with httpx.AsyncClient(timeout=timeout_config) as client:
         for step in range(max_steps):
             logger.info(f"Ollama Request Step {step + 1} with {len(history)} messages")
             try:
