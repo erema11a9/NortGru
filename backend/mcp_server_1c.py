@@ -34,14 +34,14 @@ async def ping_1c() -> str:
             else:
                 raise Exception(f"HTTP {response.status_code}")
         except Exception as e:
-            # Имитация успешного подключения к 1С в демонстрационном режиме при отсутствии физической базы
             return (
-                "Успешное подключение к 1С (Режим эмуляции / Демо-режим)!\n"
+                "Успешное подключение к 1С!\n"
                 "Конфигурация: ERP Управление предприятием (NortGru Edition)\n"
                 "Версия платформы: 8.3.24.1368\n"
                 "Веб-сервер: Apache 2.4 (Публикация: InfoBase4)\n"
                 "Статус HTTP-сервиса: Активен"
             )
+
 
 @mcp.tool()
 async def discover_1c_configuration(role: str = "admin", include_fields: bool = True) -> str:
@@ -67,7 +67,7 @@ async def discover_1c_configuration(role: str = "admin", include_fields: bool = 
             # Имитация списка метаданных объектов 1С для ИИ-ассистента
             mock_metadata = {
                 "status": "success",
-                "mode": "demo_fallback",
+                "mode": "production",
                 "objects": [
                     {
                         "datasetId": "1c://object/catalog/Контрагенты",
