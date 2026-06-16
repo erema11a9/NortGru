@@ -173,8 +173,6 @@ def create_waybill(
     db: Session = Depends(get_db),
     current_user: models.Person = Depends(get_current_user)
 ):
-    # Пытаемся найти водителя
-    
     try:
         new_wb = models.Waybill(
             series_number=f"ПЛ-{datetime.now().strftime('%M%S')}", # Генерируем временно
@@ -194,6 +192,45 @@ def create_waybill(
             fuel_at_start=waybill_data.get("fuel_start", 0),
         )
         db.add(new_details)
+        db.flush()
+
+        # Получаем информацию о ТС
+        vehicle = db.query(models.Vehicle).filter(models.Vehicle.id == new_wb.vehicle_id).first()
+        vehicle_str = f"{vehicle.brand} ({vehicle.gov_number})" if vehicle else "—"
+
+        # Создаем документ путевого листа в таблице документов для синхронизации
+        import json
+        extra_data = {
+            "series_number": new_wb.series_number,
+            "vehicle": vehicle_str,
+            "driver": waybill_data.get("driver", "—"),
+            "route_from": new_details.route_from or "—",
+            "route_to": new_details.route_to or "—",
+            "odo_start": new_details.odometer_start,
+            "fuel_start": new_details.fuel_at_start,
+            "distance_km": 0,
+            "fuel_issued": new_details.fuel_at_start,
+            "fuel_handed_over": 0,
+            "fuel_cost": 0,
+            "fuel_mark": "ДТ",
+            "departure_time": datetime.now().isoformat(),
+            "arrival_time": ""
+        }
+
+        doc_count = db.query(models.Document).filter(
+            models.Document.document_type == "waybill"
+        ).count() + 1
+        doc_number = f"ТМ-2026-{str(doc_count).zfill(3)}"
+
+        new_doc = models.Document(
+            number=doc_number,
+            document_type="waybill",
+            employee_name=waybill_data.get("driver", "—"),
+            status="draft",  # Начальный статус путевого листа
+            created_by_id=current_user.id,
+            extra_data=json.dumps(extra_data, ensure_ascii=False)
+        )
+        db.add(new_doc)
 
         db.commit()
         db.refresh(new_wb)
@@ -201,7 +238,7 @@ def create_waybill(
             "id": new_wb.id,
             "number": new_wb.series_number,
             "date": new_wb.date,
-            "vehicle": "—", 
+            "vehicle": vehicle_str, 
             "driver": waybill_data.get("driver"), 
             "route_from": new_details.route_from, 
             "route_to": new_details.route_to, 
@@ -264,6 +301,33 @@ def complete_waybill(
             description=f"Отгрузка по путевому листу #{wb.series_number}"
         )
         db.add(op)
+
+    # Также обновим связанный документ в таблице documents, если он есть
+    try:
+        import json
+        doc = db.query(models.Document).filter(
+            models.Document.document_type == "waybill",
+            models.Document.extra_data.like(f'%"{wb.series_number}"%')
+        ).first()
+        if doc:
+            extra = json.loads(doc.extra_data) if doc.extra_data else {}
+            extra["odo_end"] = data.odo_end
+            extra["fuel_handed_over"] = data.fuel_end
+            extra["fuel_cost"] = data.fuel_cost
+            extra["fuel_type"] = data.fuel_type
+            extra["distance_km"] = float(data.odo_end - (wb.details.odometer_start or 0))
+            extra["fuel_issued"] = float(wb.details.fuel_at_start or 0.0)
+            
+            # Вычислим стоимость топлива, если введена цена за литр
+            price = float(extra.get("fuel_price") or 0.0)
+            issued = float(extra.get("fuel_issued") or 0.0)
+            if price > 0:
+                extra["fuel_cost"] = round(issued * price, 2)
+                
+            doc.extra_data = json.dumps(extra, ensure_ascii=False)
+            doc.status = "approved"  # Раз рейс завершен, документ автоматически согласован
+    except Exception as ex:
+        print(f"Ошибка синхронизации путевого листа в документы: {str(ex)}")
 
     db.commit()
     return {"message": "Путевой лист завершен"}
