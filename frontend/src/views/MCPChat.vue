@@ -158,7 +158,9 @@ onMounted(() => {
 
 async function sendUserMessage(action = null) {
   let messageText = ''
-  if (action) {
+  const isDirectAction = typeof action === 'string'
+
+  if (isDirectAction) {
     if (action === 'get_warehouse_summary') {
       messageText = 'Покажи сводку по остаткам на складах'
     } else if (action === 'analyze_waybills') {
@@ -176,7 +178,7 @@ async function sendUserMessage(action = null) {
 
   // Добавляем сообщение пользователя
   messages.value.push({ role: 'user', text: messageText })
-  if (!action) {
+  if (!isDirectAction) {
     inputText.value = ''
   }
   scrollToBottom()
@@ -199,7 +201,7 @@ async function sendUserMessage(action = null) {
     const payload = {
       messages: historyForBackend
     }
-    if (action) {
+    if (isDirectAction) {
       payload.action = action
     }
 
