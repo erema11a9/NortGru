@@ -58,6 +58,83 @@ def list_documents(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user)
 ):
+    # Фоновая автосинхронизация: проверяем, все ли путевые листы из таблицы 'waybills'
+    # имеют зеркальную копию в общей таблице 'documents'.
+    try:
+        from sqlalchemy.orm import joinedload
+        import json
+        from datetime import datetime, time
+        
+        waybills = db.query(models.Waybill).options(
+            joinedload(models.Waybill.details),
+            joinedload(models.Waybill.vehicle),
+            joinedload(models.Waybill.driver)
+        ).all()
+        
+        for wb in waybills:
+            # Ищем документ по series_number в extra_data
+            doc_exists = db.query(models.Document).filter(
+                models.Document.document_type == "waybill",
+                models.Document.extra_data.like(f'%"{wb.series_number}"%')
+            ).first()
+            
+            if not doc_exists:
+                driver_name = "—"
+                driver_person_id = None
+                if wb.driver:
+                    emp = db.query(models.Employee).filter(models.Employee.id == wb.driver.employee_id).first()
+                    if emp:
+                        person = db.query(models.Person).filter(models.Person.id == emp.person_id).first()
+                        if person:
+                            driver_name = person.full_name
+                            driver_person_id = person.id
+                            
+                vehicle_str = f"{wb.vehicle.brand} ({wb.vehicle.gov_number})" if wb.vehicle else "—"
+                
+                odo_start = wb.details.odometer_start if wb.details else 0.0
+                odo_end = wb.details.odometer_end if wb.details else None
+                dist = (odo_end - odo_start) if (odo_end is not None and odo_end > 0) else 0.0
+                
+                extra_data = {
+                    "series_number": wb.series_number,
+                    "vehicle": vehicle_str,
+                    "driver": driver_name,
+                    "route_from": wb.details.route_from if wb.details else "—",
+                    "route_to": wb.details.route_to if wb.details else "—",
+                    "odo_start": odo_start,
+                    "fuel_start": wb.details.fuel_at_start if wb.details else 0.0,
+                    "odo_end": odo_end,
+                    "fuel_handed_over": wb.details.fuel_at_return if wb.details else None,
+                    "distance_km": dist,
+                    "fuel_issued": wb.details.fuel_at_start if wb.details else 0.0,
+                    "fuel_cost": wb.details.fuel_cost if wb.details else 0.0,
+                    "fuel_type": wb.details.fuel_type if wb.details else "ДТ",
+                    "fuel_mark": wb.details.fuel_type if wb.details else "ДТ",
+                    "departure_time": datetime.combine(wb.date, time.min).isoformat() if wb.date else datetime.now().isoformat(),
+                    "arrival_time": ""
+                }
+                
+                status = "approved" if (odo_end is not None and odo_end > 0) else "draft"
+                
+                doc_count = db.query(models.Document).filter(
+                    models.Document.document_type == "waybill"
+                ).count() + 1
+                doc_number = f"ТМ-2026-{str(doc_count).zfill(3)}"
+                
+                new_doc = models.Document(
+                    number=doc_number,
+                    document_type="waybill",
+                    employee_name=driver_name,
+                    status=status,
+                    created_by_id=driver_person_id or 1,
+                    extra_data=json.dumps(extra_data, ensure_ascii=False),
+                    created_at=datetime.combine(wb.date, time.min) if wb.date else datetime.now()
+                )
+                db.add(new_doc)
+                db.commit()
+    except Exception as ex:
+        print(f"Ошибка фоновой автосинхронизации путевых листов: {str(ex)}")
+
     q = db.query(models.Document)
     if doc_type:
         q = q.filter(models.Document.document_type == doc_type)
