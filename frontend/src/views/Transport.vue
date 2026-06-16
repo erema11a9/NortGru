@@ -421,19 +421,30 @@ function statusClass(s) {
 
 async function loadDictionaries() {
     try {
-        const [vRes, wRes, pRes] = await Promise.all([
-            api.get('/transport/vehicles'),
-            api.get('/warehouse/list'),
-            api.get('/warehouse/products')
-        ])
+        const vRes = await api.get('/transport/vehicles')
         vehicles.value = vRes.data
-        warehouses.value = wRes.data
-        products.value = pRes.data
-        
-        if (warehouses.value.length) completeForm.warehouse_id = warehouses.value[0].id
-        if (products.value.length) completeForm.product_id = products.value[0].id
     } catch (e) {
-        console.error("Ошибка словарей", e)
+        console.error("Ошибка при загрузке ТС:", e)
+    }
+    
+    try {
+        const wRes = await api.get('/warehouse/list')
+        warehouses.value = wRes.data
+        if (warehouses.value.length) {
+            completeForm.warehouse_id = warehouses.value[0].id
+        }
+    } catch (e) {
+        console.error("Ошибка при загрузке складов:", e)
+    }
+
+    try {
+        const pRes = await api.get('/warehouse/products')
+        products.value = pRes.data
+        if (products.value.length) {
+            completeForm.product_id = products.value[0].id
+        }
+    } catch (e) {
+        console.error("Ошибка при загрузке товаров:", e)
     }
 }
 

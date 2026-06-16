@@ -26,6 +26,7 @@
       <div :class="['tab', filter === 'waybill' && 'act']" @click="filter = 'waybill'">Путевые листы</div>
       <div :class="['tab', filter === 'employment' && 'act']" @click="filter = 'employment'">Договоры</div>
       <div :class="['tab', filter === 'transport_waybill' && 'act']" @click="filter = 'transport_waybill'">Транспортные накладные</div>
+      <div :class="['tab', filter === 'replenishment' && 'act']" @click="filter = 'replenishment'">Поступления</div>
     </div>
 
     <!-- Loading -->
@@ -133,6 +134,15 @@
               <div><b>Транспорт:</b> {{ parseExtra(viewDoc.extra_data).vehicle || '—' }}</div>
               <div><b>Водитель:</b> {{ parseExtra(viewDoc.extra_data).driver || '—' }}</div>
             </div>
+            <!-- Extra info for Replenishment -->
+            <div v-if="viewDoc.document_type === 'replenishment'" style="margin-top:12px; margin-bottom:12px; padding:12px; background:#fff; border:1px dashed var(--border); border-radius:6px; font-size:13px; display:flex; flex-direction:column; gap:4px;">
+              <div><b>Номер поступления:</b> {{ parseExtra(viewDoc.extra_data).receipt_number || '—' }}</div>
+              <div><b>Поставщик:</b> {{ parseExtra(viewDoc.extra_data).supplier || '—' }}</div>
+              <div><b>Склад поступления:</b> {{ parseExtra(viewDoc.extra_data).warehouse || '—' }}</div>
+              <div><b>Товар:</b> {{ parseExtra(viewDoc.extra_data).product_name || '—' }} ({{ parseExtra(viewDoc.extra_data).quantity || '0' }} т)</div>
+              <div><b>Сумма:</b> {{ parseExtra(viewDoc.extra_data).amount ? parseExtra(viewDoc.extra_data).amount.toLocaleString() + ' руб.' : '—' }}</div>
+              <div><b>Комментарий:</b> {{ parseExtra(viewDoc.extra_data).comment || '—' }}</div>
+            </div>
             <hr style="margin:12px 0;border:none;border-top:1px solid var(--border);" />
             <p class="fs12 tm">Документ сформирован автоматически системой NortGru. Для получения версии .docx используйте кнопку «Печать».</p>
             <p class="mt2 fs12"><i class="fas fa-building tm"></i> <b>ООО «НОРД-ИСТ ГРУПП»</b>, г. Биробиджан / г. Хабаровск</p>
@@ -220,6 +230,7 @@
               <option value="waybill">🚛 Путевой лист</option>
               <option value="employment">📄 Трудовой договор</option>
               <option value="transport_waybill">📦 Транспортная накладная</option>
+              <option value="replenishment">📥 Поступление товаров (Пополнение)</option>
             </select>
           </div>
           <div class="fgr">
@@ -304,6 +315,26 @@
             <div class="frow2">
               <div class="fgr"><label class="fll">Транспорт (Гос.номер)</label><input v-model="nd.vehicle" class="fin" placeholder="Scania E777KX79" /></div>
               <div class="fgr"><label class="fll">Водитель</label><input v-model="nd.driver" class="fin" placeholder="Ковалев И.П." /></div>
+            </div>
+          </template>
+
+          <!-- Replenishment fields -->
+          <template v-if="newType === 'replenishment'">
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Номер поступления</label><input v-model="nd.receipt_number" class="fin" placeholder="ПС-100" /></div>
+              <div class="fgr"><label class="fll">Поставщик</label><input v-model="nd.supplier" class="fin" placeholder="ООО «Поставщик»" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Склад поступления</label><input v-model="nd.warehouse" class="fin" placeholder="Центральный склад" /></div>
+              <div class="fgr"><label class="fll">Наименование товара</label><input v-model="nd.product_name" class="fin" placeholder="Торф фрезерный" /></div>
+            </div>
+            <div class="frow2">
+              <div class="fgr"><label class="fll">Количество (т)</label><input v-model.number="nd.quantity" class="fin" type="number" step="0.1" placeholder="100" /></div>
+              <div class="fgr"><label class="fll">Сумма (руб)</label><input v-model.number="nd.amount" class="fin" type="number" placeholder="50000" /></div>
+            </div>
+            <div class="fgr">
+              <label class="fll">Комментарий</label>
+              <textarea v-model="nd.comment" class="fin" placeholder="Запчасти или приход сырья..."></textarea>
             </div>
           </template>
 
@@ -425,6 +456,8 @@ const nd         = reactive({
   series_number: '', vehicle: '', driver: '', period_info: '', route_from: '', route_to: '', departure_time: '', arrival_time: '', distance_km: '', fuel_mark: 'ДТ', fuel_price: '', fuel_cost: '', fuel_issued: '', fuel_handed_over: '', fuel_rate: '',
   // Transport Waybill fields
   waybill_number: '', carrier: '', cargo_name: '', cargo_weight: '', load_point: '', unload_point: '',
+  // Replenishment fields
+  receipt_number: '', supplier: '', warehouse: '', product_name: '', quantity: '', amount: '', comment: '',
   // Employment — Главное
   organization: '', contract_number: '', contract_type: '', hire_date: '',
   department: '', territory: '', position_staff: '', job_title: '',
@@ -438,8 +471,8 @@ const nd         = reactive({
   tabel_number: '', phone: '', email: ''
 })
 
-const typeLabels = { vacation:'Заявка на отпуск', travel:'Командировка', waybill:'Путевой лист', employment:'Трудовой договор', transport_waybill:'Транспортная накладная' }
-const filterLabelMap = { all:'Все документы', vacation:'Заявки на отпуск', travel:'Командировки', waybill:'Путевые листы', employment:'Трудовые договоры', transport_waybill:'Транспортные накладные' }
+const typeLabels = { vacation:'Заявка на отпуск', travel:'Командировка', waybill:'Путевой лист', employment:'Трудовой договор', transport_waybill:'Транспортная накладная', replenishment:'Поступление товаров' }
+const filterLabelMap = { all:'Все документы', vacation:'Заявки на отпуск', travel:'Командировки', waybill:'Путевые листы', employment:'Трудовые договоры', transport_waybill:'Транспортные накладные', replenishment:'Поступления товаров' }
 function typeLabel(t) { return typeLabels[t] || t }
 
 function calcFuelCost() {

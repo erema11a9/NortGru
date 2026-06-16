@@ -19,6 +19,7 @@ DOC_PREFIXES = {
     "waybill":    "ТМ",
     "employment": "ТД",
     "transport_waybill": "ТРН",
+    "replenishment": "ПСТ",
 }
 
 STATUS_LABELS = {
@@ -34,6 +35,7 @@ TYPE_LABELS = {
     "waybill":    "Путевой лист",
     "employment": "Трудовой договор",
     "transport_waybill": "Транспортная накладная",
+    "replenishment": "Поступление товаров",
 }
 
 
@@ -372,6 +374,35 @@ def download_document(
         table3.cell(1, 0).text = str(extra.get('fuel_mark') or '—')
         table3.cell(1, 1).text = str(extra.get('fuel_issued') or '0')
         table3.cell(1, 2).text = str(extra.get('fuel_handed_over') or '0')
+    elif doc.document_type == 'transport_waybill':
+        document.add_heading(f"ТРАНСПОРТНАЯ НАКЛАДНАЯ № {extra.get('waybill_number') or doc.number}", 0)
+        document.add_paragraph("Организация: ООО «НОРД-ИСТ ГРУПП»")
+        document.add_paragraph(f"Дата создания: {doc.created_at.strftime('%d.%m.%Y')}")
+        document.add_paragraph(f"Сотрудник: {doc.employee_name}")
+        document.add_paragraph(f"Перевозчик: {extra.get('carrier') or '—'}")
+        
+        document.add_heading("Сведения о грузе и перевозке", level=1)
+        document.add_paragraph(f"Наименование груза: {extra.get('cargo_name') or '—'}")
+        document.add_paragraph(f"Масса груза: {extra.get('cargo_weight') or '0'} т")
+        document.add_paragraph(f"Пункт погрузки: {extra.get('load_point') or '—'}")
+        document.add_paragraph(f"Пункт разгрузки: {extra.get('unload_point') or '—'}")
+        document.add_paragraph(f"Транспортное средство: {extra.get('vehicle') or '—'}")
+        document.add_paragraph(f"Водитель: {extra.get('driver') or '—'}")
+        
+    elif doc.document_type == 'replenishment':
+        document.add_heading(f"ПОСТУПЛЕНИЕ ТОВАРОВ № {extra.get('receipt_number') or doc.number}", 0)
+        document.add_paragraph("Организация: ООО «НОРД-ИСТ ГРУПП»")
+        document.add_paragraph(f"Дата создания: {doc.created_at.strftime('%d.%m.%Y')}")
+        document.add_paragraph(f"Сотрудник: {doc.employee_name}")
+        document.add_paragraph(f"Поставщик: {extra.get('supplier') or '—'}")
+        
+        document.add_heading("Сведения о поступлении", level=1)
+        document.add_paragraph(f"Склад поступления: {extra.get('warehouse') or '—'}")
+        document.add_paragraph(f"Товар: {extra.get('product_name') or '—'}")
+        document.add_paragraph(f"Количество: {extra.get('quantity') or '0'} т")
+        document.add_paragraph(f"Сумма: {extra.get('amount') or '0'} руб.")
+        document.add_paragraph(f"Комментарий: {extra.get('comment') or '—'}")
+        
     else:
         document.add_heading(f"{TYPE_LABELS.get(doc.document_type, 'Документ')} № {doc.number}", 0)
 
