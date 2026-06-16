@@ -159,7 +159,7 @@ async function sendUserMessage() {
     const response = await api.post('/mcp/chat', {
       messages: historyForBackend
     }, {
-      timeout: 15000
+      timeout: 60000
     })
 
     // Записываем ответ от бэкенда
