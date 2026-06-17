@@ -107,6 +107,38 @@ class WaybillDetail(Base):
     
     waybill = relationship("Waybill", back_populates="details")
 
+    @property
+    def fuel_consumption_actual(self) -> float:
+        if self.odometer_end and self.odometer_end > 0:
+            val = (self.fuel_at_start or 0.0) + (self.fuel_issued or 0.0) - (self.fuel_at_return or 0.0)
+            return max(0.0, val)
+        return 0.0
+
+    @fuel_consumption_actual.setter
+    def fuel_consumption_actual(self, value):
+        pass
+
+    @property
+    def fuel_consumption_norm(self) -> float:
+        if self.odometer_end and self.odometer_start and self.odometer_end > self.odometer_start:
+            dist = self.odometer_end - self.odometer_start
+            return round(dist * 0.35, 2)
+        return 0.0
+
+    @fuel_consumption_norm.setter
+    def fuel_consumption_norm(self, value):
+        pass
+
+    @property
+    def distance(self) -> float:
+        if self.odometer_end and self.odometer_start and self.odometer_end > self.odometer_start:
+            return self.odometer_end - self.odometer_start
+        return 0.0
+
+    @distance.setter
+    def distance(self, value):
+        pass
+
 class Document(Base):
     __tablename__ = "documents"
     id = Column(Integer, primary_key=True, index=True)

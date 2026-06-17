@@ -99,6 +99,8 @@ def get_waybills(db: Session = Depends(get_db), _: models.Person = Depends(get_c
                     extra = json.loads(doc.extra_data)
                 except Exception:
                     pass
+            if not isinstance(extra, dict):
+                extra = {}
             
             series_num = extra.get("series_number") or doc.number
             
