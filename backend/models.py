@@ -31,6 +31,9 @@ class Employee(Base):
     person_id = Column(Integer, ForeignKey("persons.id"))
     job_title_id = Column(Integer, ForeignKey("job_titles.id"))
     tabel_number = Column(String(50), unique=True)
+    
+    person = relationship("Person")
+    job_title = relationship("JobTitle")
 
 class Role(Base):
     __tablename__ = "roles"
@@ -68,6 +71,7 @@ class Driver(Base):
     snils = Column(String(20))
     license_card_reg_num = Column(String(50))
     
+    employee = relationship("Employee")
     waybills = relationship("Waybill", back_populates="driver")
 
 # 3. ПУТЕВЫЕ ЛИСТЫ И ДОКУМЕНТЫ

@@ -80,6 +80,99 @@ def create_vehicle(vehicle_data: dict, db: Session = Depends(get_db), _: models.
 
 @router.get("/waybills")
 def get_waybills(db: Session = Depends(get_db), _: models.Person = Depends(get_current_user)):
+    # ── Background Auto-Sync: From approved waybill Documents to Waybill journal ──
+    try:
+        import json
+        import re
+        from datetime import datetime
+        
+        approved_docs = db.query(models.Document).filter(
+            models.Document.document_type == "waybill",
+            models.Document.status == "approved"
+        ).all()
+        
+        synced_any = False
+        for doc in approved_docs:
+            extra = {}
+            if doc.extra_data:
+                try:
+                    extra = json.loads(doc.extra_data)
+                except Exception:
+                    pass
+            
+            series_num = extra.get("series_number") or doc.number
+            
+            # Check if Waybill already exists in the database
+            wb_exists = db.query(models.Waybill).filter(models.Waybill.series_number == series_num).first()
+            if not wb_exists:
+                # 1. Match Vehicle
+                vehicle_str = extra.get("vehicle")
+                vehicle = None
+                if vehicle_str:
+                    vehicle = db.query(models.Vehicle).filter(
+                        (models.Vehicle.gov_number == vehicle_str) | 
+                        (models.Vehicle.brand == vehicle_str)
+                    ).first()
+                    if not vehicle:
+                        match = re.search(r'[A-Za-zА-Яа-я0-9-]{5,10}', vehicle_str)
+                        if match:
+                            clean_num = match.group(0)
+                            vehicle = db.query(models.Vehicle).filter(
+                                models.Vehicle.gov_number.ilike(f"%{clean_num}%")
+                            ).first()
+                if not vehicle:
+                    vehicle = db.query(models.Vehicle).first()
+                
+                # 2. Match Driver
+                driver_name = extra.get("driver") or doc.employee_name
+                driver = None
+                if driver_name:
+                    surname = driver_name.split()[0] if driver_name.split() else ""
+                    if surname:
+                        person = db.query(models.Person).filter(models.Person.full_name.ilike(f"%{surname}%")).first()
+                        if person:
+                            employee = db.query(models.Employee).filter(models.Employee.person_id == person.id).first()
+                            if employee:
+                                driver = db.query(models.Driver).filter(models.Driver.employee_id == employee.id).first()
+                if not driver:
+                    driver = db.query(models.Driver).first()
+                
+                # 3. Create Waybill
+                wb_date = doc.created_at.date() if doc.created_at else datetime.now().date()
+                new_wb = models.Waybill(
+                    series_number=series_num,
+                    date=wb_date,
+                    vehicle_id=vehicle.id if vehicle else 1,
+                    driver_id=driver.id if driver else 1,
+                    color_mark="active",
+                    is_1c_integrated=False
+                )
+                db.add(new_wb)
+                db.flush()
+                
+                # 4. Create WaybillDetail
+                new_details = models.WaybillDetail(
+                    waybill_id=new_wb.id,
+                    route_from=extra.get("route_from") or "—",
+                    route_to=extra.get("route_to") or "—",
+                    odometer_start=float(extra.get("odo_start") or 0.0),
+                    odometer_end=float(extra.get("odo_end") or 0.0),
+                    fuel_at_start=float(extra.get("fuel_start") or 0.0),
+                    fuel_issued=float(extra.get("fuel_issued") or 0.0),
+                    fuel_at_return=float(extra.get("fuel_handed_over") or 0.0),
+                    fuel_cost=float(extra.get("fuel_cost") or 0.0),
+                    fuel_type=extra.get("fuel_mark") or "ДТ"
+                )
+                db.add(new_details)
+                synced_any = True
+        
+        if synced_any:
+            db.commit()
+            
+    except Exception as e:
+        db.rollback()
+        print(f"Ошибка фоновой автосинхронизации одобренных путевых листов в транспорт: {str(e)}")
+
     waybills = db.query(models.Waybill).options(
         joinedload(models.Waybill.details),
         joinedload(models.Waybill.vehicle),
