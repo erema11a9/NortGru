@@ -59,8 +59,9 @@ sudo docker compose down --remove-orphans || true
 sudo docker compose up --build -d
 
 # 5. Очистка неиспользуемых ресурсов (экономия места на VPS)
-echo -e "${GREEN}[*] Очистка старых неиспользуемых Docker-образов...${NC}"
+echo -e "${GREEN}[*] Очистка старых неиспользуемых Docker-образов и кэша сборщика...${NC}"
 sudo docker image prune -f || true
+sudo docker builder prune -f || true
 
 echo -e "${GREEN}==============================================${NC}"
 echo -e "${GREEN}    Приложение NortGru успешно запущено!      ${NC}"
